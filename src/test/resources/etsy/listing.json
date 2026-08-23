@@ -1,0 +1,27 @@
+{
+  "listing_id": 1147645830,
+  "shop_id": 12345,
+  "title": "Graphic DTG Print Tee",
+  "description": "A printed t-shirt",
+  "tags": ["graphic", "tee"],
+  "taxonomy_id": 1603,
+  "url": "https://www.etsy.com/listing/1147645830/graphic-dtg-print-tee",
+  "price": {
+    "amount": 2499,
+    "divisor": 100,
+    "currency_code": "USD"
+  },
+  "quantity": 10,
+  "num_favorers": 42,
+  "created_timestamp": 1700000000,
+  "original_creation_timestamp": 1690000000,
+  "updated_timestamp": 1710000000,
+  "state": "active",
+  "views": 999999,
+  "images": [
+    {
+      "url_fullxfull": "https://i.etsystatic.com/example.jpg",
+      "rank": 1
+    }
+  ]
+}
