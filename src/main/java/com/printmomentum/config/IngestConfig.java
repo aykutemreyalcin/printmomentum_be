@@ -1,5 +1,6 @@
 package com.printmomentum.config;
 
+import com.printmomentum.domain.ListingRanker;
 import com.printmomentum.domain.PrintTeeClassifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -14,6 +15,11 @@ public class IngestConfig {
 	@Bean
 	PrintTeeClassifier printTeeClassifier() {
 		return PrintTeeClassifier.loadDefault();
+	}
+
+	@Bean
+	ListingRanker listingRanker() {
+		return new ListingRanker();
 	}
 
 	@Configuration

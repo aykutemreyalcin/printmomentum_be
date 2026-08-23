@@ -3,6 +3,7 @@ package com.printmomentum.ingest;
 import com.printmomentum.config.IngestProperties;
 import com.printmomentum.domain.Listing;
 import com.printmomentum.domain.ListingImage;
+import com.printmomentum.domain.ListingRanker;
 import com.printmomentum.domain.ListingRepository;
 import com.printmomentum.domain.ListingSnapshot;
 import com.printmomentum.domain.ListingSnapshotRepository;
@@ -37,6 +38,7 @@ public class ListingIngestJob {
 	private final ShopRepository shopRepository;
 	private final ListingRepository listingRepository;
 	private final ListingSnapshotRepository listingSnapshotRepository;
+	private final ListingRanker listingRanker;
 	private final TransactionTemplate transactionTemplate;
 	private final ObjectMapper objectMapper;
 
@@ -47,6 +49,7 @@ public class ListingIngestJob {
 			ShopRepository shopRepository,
 			ListingRepository listingRepository,
 			ListingSnapshotRepository listingSnapshotRepository,
+			ListingRanker listingRanker,
 			PlatformTransactionManager transactionManager,
 			ObjectMapper objectMapper) {
 		this.etsyClient = etsyClient;
@@ -55,6 +58,7 @@ public class ListingIngestJob {
 		this.shopRepository = shopRepository;
 		this.listingRepository = listingRepository;
 		this.listingSnapshotRepository = listingSnapshotRepository;
+		this.listingRanker = listingRanker;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
 		this.objectMapper = objectMapper;
 	}
@@ -148,13 +152,27 @@ public class ListingIngestJob {
 		}
 		addImagesIfMissing(listing, etsyListing.images());
 		listingRepository.save(listing);
-		listingSnapshotRepository.save(new ListingSnapshot(
+		listingSnapshotRepository.saveAndFlush(new ListingSnapshot(
 				listing,
 				crawlRunId.toString(),
 				observedAt,
 				position,
 				listing.getNumFavorers()));
+		int favorersDelta = favorersDelta(listing.getListingId());
+		double momentum = listingRanker.score(
+				listing.getEtsyCreatedAt(), listing.getFirstSeenInTopAt(), observedAt, favorersDelta);
+		listing.setLastScore(BigDecimal.valueOf(momentum).setScale(9, RoundingMode.HALF_UP));
+		listing.setLastScoredAt(observedAt);
+		listingRepository.save(listing);
 		return true;
+	}
+
+	private int favorersDelta(long listingId) {
+		List<ListingSnapshot> recent = listingSnapshotRepository.findTop2ByListingListingIdOrderByIdDesc(listingId);
+		if (recent.size() < 2) {
+			return 0;
+		}
+		return recent.get(0).getNumFavorers() - recent.get(1).getNumFavorers();
 	}
 
 	private static Shop newShop(long shopId) {

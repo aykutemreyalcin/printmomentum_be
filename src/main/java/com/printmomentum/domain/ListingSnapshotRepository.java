@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ListingSnapshotRepository extends JpaRepository<ListingSnapshot, Long> {
 
 	List<ListingSnapshot> findByListingListingIdOrderByIdAsc(Long listingId);
+
+	List<ListingSnapshot> findTop2ByListingListingIdOrderByIdDesc(Long listingId);
 }
