@@ -1,0 +1,79 @@
+# Print-tee classifier rules. Scores are 0–1; is_print_tee when score >= threshold.
+threshold: 0.7
+apparelWeight: 0.4
+tshirtTaxonomyIds:
+  - 1603
+includeWeights:
+  print: 0.3
+  graphic: 0.3
+  dtg: 0.3
+  sublimation: 0.3
+  mockup: 0.3
+includeKeywords:
+  tee:
+    - tee
+    - tees
+    - t-shirt
+    - t-shirts
+    - tshirt
+    - tshirts
+    - t shirt
+    - t shirts
+  print:
+    - print
+    - printed
+    - printing
+    - screen print
+    - screenprint
+  graphic:
+    - graphic
+    - graphics
+  dtg:
+    - dtg
+    - direct to garment
+    - direct-to-garment
+  sublimation:
+    - sublimation
+    - sublimated
+  mockup:
+    - mockup
+    - mock-up
+    - mock up
+    - printable
+excludeKeywords:
+  vintage:
+    - vintage
+  used:
+    - used
+    - pre-owned
+    - preowned
+    - secondhand
+    - second-hand
+    - second hand
+  embroidery:
+    - embroidered
+    - embroidery
+    - embroider
+  blankWholesale:
+    - blank wholesale
+    - wholesale blank
+    - blank gildan
+    - gildan wholesale
+    - bulk blank
+    - blank bulk
+    - wholesale tees
+  hoodie:
+    - hoodie
+    - hoodies
+    - sweatshirt
+    - sweatshirts
+  nonApparel:
+    - mug
+    - mugs
+    - poster
+    - posters
+    - sticker
+    - stickers
+    - tote
+    - candle
+    - phone case
