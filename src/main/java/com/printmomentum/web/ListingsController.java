@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,5 +33,20 @@ public class ListingsController {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..100");
 		}
 		return listingFeedService.list(page, size, maxDaysToTop, minScore, q);
+	}
+
+	@GetMapping("/listings/{id}")
+	public ListingDetailResponse detail(
+			@PathVariable long id,
+			@RequestParam(defaultValue = "20") int snapshotLimit,
+			@RequestParam(defaultValue = "false") boolean debug) {
+		if (snapshotLimit < 1 || snapshotLimit > MAX_PAGE_SIZE) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "snapshotLimit must be 1..100");
+		}
+		ListingDetailResponse detail = listingFeedService.detail(id, snapshotLimit, debug);
+		if (detail == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "listing not found");
+		}
+		return detail;
 	}
 }
