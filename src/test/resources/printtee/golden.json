@@ -1,0 +1,128 @@
+{
+  "documentedPrecision": 1.0,
+  "includeCount": 8,
+  "excludeCount": 7,
+  "threshold": 0.7,
+  "cases": [
+    {
+      "id": "include-graphic-dtg-print-tee",
+      "expectPrintTee": true,
+      "title": "Graphic DTG Print Tee",
+      "description": "Custom DTG artwork on a cotton t-shirt",
+      "tags": ["graphic", "dtg", "t-shirt"],
+      "taxonomyId": 1603
+    },
+    {
+      "id": "include-custom-printed-tshirt",
+      "expectPrintTee": true,
+      "title": "Custom printed t-shirt",
+      "description": "Made to order printed tee",
+      "tags": ["print", "tee"],
+      "taxonomyId": null
+    },
+    {
+      "id": "include-sublimation-graphic-tee",
+      "expectPrintTee": true,
+      "title": "Sublimation graphic tee",
+      "description": "All-over sublimated design",
+      "tags": ["sublimation", "graphic"],
+      "taxonomyId": null
+    },
+    {
+      "id": "include-funny-graphic-tee",
+      "expectPrintTee": true,
+      "title": "Funny graphic tee",
+      "description": "Joke artwork",
+      "tags": ["graphic", "tshirt"],
+      "taxonomyId": null
+    },
+    {
+      "id": "include-dtg-custom-tshirt",
+      "expectPrintTee": true,
+      "title": "DTG custom t-shirt",
+      "description": "Direct to garment print",
+      "tags": ["dtg"],
+      "taxonomyId": null
+    },
+    {
+      "id": "include-printable-mockup",
+      "expectPrintTee": true,
+      "title": "Printable t-shirt mockup design",
+      "description": "Mock-up ready artwork",
+      "tags": ["printable", "mockup", "tee"],
+      "taxonomyId": null
+    },
+    {
+      "id": "include-screen-print-tshirt",
+      "expectPrintTee": true,
+      "title": "Screen print t-shirt",
+      "description": "Classic screen printed graphic",
+      "tags": ["printed", "graphic"],
+      "taxonomyId": null
+    },
+    {
+      "id": "include-taxonomy-graphic-print",
+      "expectPrintTee": true,
+      "title": "Graphic print clothing",
+      "description": "Soft cotton apparel",
+      "tags": ["graphic", "print"],
+      "taxonomyId": 1603
+    },
+    {
+      "id": "exclude-vintage-band-tee",
+      "expectPrintTee": false,
+      "title": "Vintage 90s band t-shirt",
+      "description": "Authentic vintage graphic tee",
+      "tags": ["vintage", "graphic", "tee"],
+      "taxonomyId": 1603
+    },
+    {
+      "id": "exclude-used-graphic-tee",
+      "expectPrintTee": false,
+      "title": "Used graphic tee",
+      "description": "Pre-owned printed t-shirt",
+      "tags": ["used", "graphic"],
+      "taxonomyId": null
+    },
+    {
+      "id": "exclude-embroidered-logo-tee",
+      "expectPrintTee": false,
+      "title": "Embroidered logo t-shirt",
+      "description": "Stitched embroidery, not a print",
+      "tags": ["embroidery", "tee"],
+      "taxonomyId": null
+    },
+    {
+      "id": "exclude-blank-gildan-wholesale",
+      "expectPrintTee": false,
+      "title": "Blank Gildan wholesale tees",
+      "description": "Bulk blank shirts for printers",
+      "tags": ["blank", "wholesale", "gildan"],
+      "taxonomyId": null
+    },
+    {
+      "id": "exclude-graphic-print-hoodie",
+      "expectPrintTee": false,
+      "title": "Graphic print hoodie",
+      "description": "DTG printed hoodie",
+      "tags": ["hoodie", "graphic", "print", "dtg"],
+      "taxonomyId": null
+    },
+    {
+      "id": "exclude-printed-sweatshirt",
+      "expectPrintTee": false,
+      "title": "Printed sweatshirt",
+      "description": "Graphic print on a sweatshirt",
+      "tags": ["sweatshirt", "print", "graphic"],
+      "taxonomyId": null
+    },
+    {
+      "id": "exclude-graphic-print-mug",
+      "expectPrintTee": false,
+      "title": "Graphic print coffee mug",
+      "description": "Printed ceramic mug, not apparel",
+      "tags": ["mug", "graphic", "print"],
+      "taxonomyId": null
+    }
+  ]
+}
