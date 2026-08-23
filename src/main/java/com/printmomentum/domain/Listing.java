@@ -71,6 +71,11 @@ public class Listing {
 
 	private Instant firstSeenInTopAt;
 
+	@Column(precision = 18, scale = 9)
+	private BigDecimal lastScore;
+
+	private Instant lastScoredAt;
+
 	@OneToMany(mappedBy = "listing", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ListingImage> images = new ArrayList<>();
 
@@ -234,6 +239,22 @@ public class Listing {
 
 	public void setFirstSeenInTopAt(Instant firstSeenInTopAt) {
 		this.firstSeenInTopAt = firstSeenInTopAt;
+	}
+
+	public BigDecimal getLastScore() {
+		return lastScore;
+	}
+
+	public void setLastScore(BigDecimal lastScore) {
+		this.lastScore = lastScore;
+	}
+
+	public Instant getLastScoredAt() {
+		return lastScoredAt;
+	}
+
+	public void setLastScoredAt(Instant lastScoredAt) {
+		this.lastScoredAt = lastScoredAt;
 	}
 
 	public List<ListingImage> getImages() {

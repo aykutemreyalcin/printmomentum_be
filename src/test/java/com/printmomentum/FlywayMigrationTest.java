@@ -22,7 +22,7 @@ class FlywayMigrationTest {
 		assertThat(tableCount("listing")).isEqualTo(1);
 		assertThat(tableCount("listing_image")).isEqualTo(1);
 		assertThat(tableCount("listing_snapshot")).isEqualTo(1);
-		assertThat(flywayVersion()).isEqualTo("3");
+		assertThat(flywayVersion()).isEqualTo("4");
 	}
 
 	@Test
