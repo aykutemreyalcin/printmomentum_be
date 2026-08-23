@@ -1,0 +1,8 @@
+printmomentum:
+  ingest:
+    enabled: false
+    cron: "-"
+spring:
+  task:
+    scheduling:
+      enabled: false
