@@ -4,6 +4,8 @@ import com.printmomentum.config.IngestProperties;
 import com.printmomentum.domain.Listing;
 import com.printmomentum.domain.ListingImage;
 import com.printmomentum.domain.ListingRepository;
+import com.printmomentum.domain.ListingSnapshot;
+import com.printmomentum.domain.ListingSnapshotRepository;
 import com.printmomentum.domain.PrintTeeClassification;
 import com.printmomentum.domain.PrintTeeClassifier;
 import com.printmomentum.domain.Shop;
@@ -34,6 +36,7 @@ public class ListingIngestJob {
 	private final IngestProperties properties;
 	private final ShopRepository shopRepository;
 	private final ListingRepository listingRepository;
+	private final ListingSnapshotRepository listingSnapshotRepository;
 	private final TransactionTemplate transactionTemplate;
 	private final ObjectMapper objectMapper;
 
@@ -43,6 +46,7 @@ public class ListingIngestJob {
 			IngestProperties properties,
 			ShopRepository shopRepository,
 			ListingRepository listingRepository,
+			ListingSnapshotRepository listingSnapshotRepository,
 			PlatformTransactionManager transactionManager,
 			ObjectMapper objectMapper) {
 		this.etsyClient = etsyClient;
@@ -50,6 +54,7 @@ public class ListingIngestJob {
 		this.properties = properties;
 		this.shopRepository = shopRepository;
 		this.listingRepository = listingRepository;
+		this.listingSnapshotRepository = listingSnapshotRepository;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
 		this.objectMapper = objectMapper;
 	}
@@ -61,6 +66,7 @@ public class ListingIngestJob {
 
 	public IngestResult run() {
 		UUID crawlRunId = UUID.randomUUID();
+		Instant observedAt = Instant.now();
 		int stored = 0;
 		int skipped = 0;
 		Set<Long> seenListingIds = new HashSet<>();
@@ -69,11 +75,13 @@ public class ListingIngestJob {
 		for (IngestProperties.Query query : properties.queries()) {
 			EtsySearchPage page = etsyClient.searchActive(
 					query.keywords(), query.taxonomyId(), properties.limit(), 0);
+			int position = 0;
 			for (EtsyListing listing : page.results()) {
+				position++;
 				if (!seenListingIds.add(listing.listingId())) {
 					continue;
 				}
-				if (upsertIfPrintTee(listing)) {
+				if (upsertIfPrintTee(listing, crawlRunId, observedAt, position)) {
 					stored++;
 				}
 				else {
@@ -86,12 +94,13 @@ public class ListingIngestJob {
 		return new IngestResult(crawlRunId, stored, skipped);
 	}
 
-	private boolean upsertIfPrintTee(EtsyListing etsyListing) {
-		Boolean stored = transactionTemplate.execute(status -> persistPrintTee(etsyListing));
+	private boolean upsertIfPrintTee(EtsyListing etsyListing, UUID crawlRunId, Instant observedAt, int position) {
+		Boolean stored = transactionTemplate.execute(
+				status -> persistPrintTee(etsyListing, crawlRunId, observedAt, position));
 		return Boolean.TRUE.equals(stored);
 	}
 
-	private boolean persistPrintTee(EtsyListing etsyListing) {
+	private boolean persistPrintTee(EtsyListing etsyListing, UUID crawlRunId, Instant observedAt, int position) {
 		if (etsyListing.listingId() == 0 || etsyListing.shopId() == null) {
 			return false;
 		}
@@ -108,7 +117,7 @@ public class ListingIngestJob {
 			return false;
 		}
 
-		Instant now = Instant.now();
+		Instant now = observedAt;
 		Shop shop = shopRepository
 				.findById(etsyListing.shopId())
 				.orElseGet(() -> shopRepository.save(newShop(etsyListing.shopId())));
@@ -134,8 +143,17 @@ public class ListingIngestJob {
 		if (listing.getFirstSeenAt() == null) {
 			listing.setFirstSeenAt(now);
 		}
+		if (listing.getFirstSeenInTopAt() == null && position <= properties.topN()) {
+			listing.setFirstSeenInTopAt(now);
+		}
 		addImagesIfMissing(listing, etsyListing.images());
 		listingRepository.save(listing);
+		listingSnapshotRepository.save(new ListingSnapshot(
+				listing,
+				crawlRunId.toString(),
+				observedAt,
+				position,
+				listing.getNumFavorers()));
 		return true;
 	}
 

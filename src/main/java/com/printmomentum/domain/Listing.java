@@ -69,6 +69,8 @@ public class Listing {
 	@Column(nullable = false)
 	private Instant lastSeenAt;
 
+	private Instant firstSeenInTopAt;
+
 	@OneToMany(mappedBy = "listing", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ListingImage> images = new ArrayList<>();
 
@@ -224,6 +226,14 @@ public class Listing {
 
 	public void setLastSeenAt(Instant lastSeenAt) {
 		this.lastSeenAt = lastSeenAt;
+	}
+
+	public Instant getFirstSeenInTopAt() {
+		return firstSeenInTopAt;
+	}
+
+	public void setFirstSeenInTopAt(Instant firstSeenInTopAt) {
+		this.firstSeenInTopAt = firstSeenInTopAt;
 	}
 
 	public List<ListingImage> getImages() {
