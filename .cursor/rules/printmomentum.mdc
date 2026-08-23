@@ -1,0 +1,14 @@
+---
+description: PrintMomentum backend conventions. Always apply so the agent does not rediscover stack, packages, or Etsy constraints.
+alwaysApply: true
+---
+
+# PrintMomentum BE
+
+- Java 21, Spring Boot 4.1.1, package `com.printmomentum`.
+- REST under `/api/v1`. JSON only. RFC 7807 for errors once that task lands.
+- Official Etsy Open API v3 only. Never scrape etsy.com. Never invent a bestseller timestamp Etsy does not return.
+- Read `.cursor/skills/` for domain, Etsy, and REST details instead of browsing the web.
+- One git branch per row in `docs/TASKS.csv`. Do not mix unrelated tasks.
+- Tests first or with the change. `./mvnw test` must pass.
+- Secrets stay in env / `.env` (gitignored). Never commit Etsy keys.
