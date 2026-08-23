@@ -29,6 +29,13 @@ public class ListingRanker {
 		return velocity + recency + favorersTie;
 	}
 
+	public Double daysToTop(Instant createdAt, Instant firstSeenInTopAt) {
+		if (createdAt == null || firstSeenInTopAt == null) {
+			return null;
+		}
+		return daysBetween(createdAt, firstSeenInTopAt);
+	}
+
 	private static double daysBetween(Instant start, Instant end) {
 		return Duration.between(start, end).toSeconds() / 86_400.0;
 	}
