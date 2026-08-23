@@ -18,11 +18,13 @@ public final class EtsyRetryInterceptor implements ClientHttpRequestInterceptor 
 	private static final Logger log = LoggerFactory.getLogger(EtsyRetryInterceptor.class);
 
 	private final EtsyProperties properties;
+	private final EtsyQuotaTracker quotaTracker;
 	private final Object rateLock = new Object();
 	private long nextPermittedNanos;
 
-	public EtsyRetryInterceptor(EtsyProperties properties) {
+	public EtsyRetryInterceptor(EtsyProperties properties, EtsyQuotaTracker quotaTracker) {
 		this.properties = properties;
+		this.quotaTracker = quotaTracker;
 	}
 
 	@Override
@@ -98,13 +100,26 @@ public final class EtsyRetryInterceptor implements ClientHttpRequestInterceptor 
 	}
 
 	private void logQuota(HttpStatusCode status, HttpHeaders headers) {
+		String remainingToday = headers.getFirst("x-remaining-today");
+		quotaTracker.recordRemainingToday(parseRemaining(remainingToday));
 		log.info(
 				"etsy status={} remainingThisSecond={} remainingToday={} limitPerSecond={} limitPerDay={}",
 				status.value(),
 				headers.getFirst("x-remaining-this-second"),
-				headers.getFirst("x-remaining-today"),
+				remainingToday,
 				headers.getFirst("x-limit-per-second"),
 				headers.getFirst("x-limit-per-day"));
+	}
+
+	private static Integer parseRemaining(String raw) {
+		if (raw == null || raw.isBlank()) {
+			return null;
+		}
+		try {
+			return Integer.parseInt(raw.trim());
+		} catch (NumberFormatException ignored) {
+			return null;
+		}
 	}
 
 	private static void park(Duration wait) {

@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 class ListingDetailControllerTest {
 
 	private static final long LISTING_ID = 10_010L;
+	private static final String API_KEY = "test-printmomentum-key";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -41,7 +42,7 @@ class ListingDetailControllerTest {
 
 	@Test
 	void missingListingReturnsNotFound() throws Exception {
-		mockMvc.perform(get("/api/v1/listings/999999999"))
+		mockMvc.perform(get("/api/v1/listings/999999999").header(ApiKeyInterceptor.HEADER, API_KEY))
 				.andExpect(status().isNotFound());
 	}
 
@@ -53,7 +54,7 @@ class ListingDetailControllerTest {
 		listingSnapshotRepository.save(new ListingSnapshot(listing, "crawl-older", older, 5, 20));
 		listingSnapshotRepository.save(new ListingSnapshot(listing, "crawl-newer", newer, 40, 31));
 
-		mockMvc.perform(get("/api/v1/listings/{id}", LISTING_ID))
+		mockMvc.perform(get("/api/v1/listings/{id}", LISTING_ID).header(ApiKeyInterceptor.HEADER, API_KEY))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.listingId").value(LISTING_ID))
 				.andExpect(jsonPath("$.title").value("BE010 graphic print tee"))
@@ -78,7 +79,9 @@ class ListingDetailControllerTest {
 	void rejectReasonsAreIncludedOnlyInDebugMode() throws Exception {
 		seedListing();
 
-		mockMvc.perform(get("/api/v1/listings/{id}", LISTING_ID).param("debug", "true"))
+		mockMvc.perform(get("/api/v1/listings/{id}", LISTING_ID)
+						.param("debug", "true")
+						.header(ApiKeyInterceptor.HEADER, API_KEY))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.rejectReasons").isArray())
 				.andExpect(jsonPath("$.rejectReasons").isEmpty());

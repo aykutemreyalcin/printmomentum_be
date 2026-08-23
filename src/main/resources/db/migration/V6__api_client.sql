@@ -1,0 +1,9 @@
+CREATE TABLE api_client (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(128) NOT NULL,
+    api_key VARCHAR(64) NOT NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_api_client_api_key UNIQUE (api_key)
+);

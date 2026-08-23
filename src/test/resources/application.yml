@@ -2,6 +2,9 @@ printmomentum:
   ingest:
     enabled: false
     cron: "-"
+  auth:
+    additional-keys:
+      - test-printmomentum-key
 spring:
   task:
     scheduling:

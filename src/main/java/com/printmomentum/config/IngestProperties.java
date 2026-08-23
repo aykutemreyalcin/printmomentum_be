@@ -10,6 +10,7 @@ public record IngestProperties(
 		@DefaultValue("-") String cron,
 		@DefaultValue("25") int limit,
 		@DefaultValue("100") int topN,
+		@DefaultValue("100") int minRemainingToday,
 		List<Query> queries) {
 
 	public IngestProperties {
