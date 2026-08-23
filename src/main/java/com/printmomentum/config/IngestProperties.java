@@ -9,6 +9,7 @@ public record IngestProperties(
 		@DefaultValue("false") boolean enabled,
 		@DefaultValue("-") String cron,
 		@DefaultValue("25") int limit,
+		@DefaultValue("100") int topN,
 		List<Query> queries) {
 
 	public IngestProperties {
