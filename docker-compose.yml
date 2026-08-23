@@ -1,0 +1,22 @@
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: printmomentum-mariadb
+    environment:
+      MARIADB_DATABASE: printmomentum
+      MARIADB_USER: printmomentum
+      MARIADB_PASSWORD: printmomentum
+      MARIADB_ROOT_PASSWORD: printmomentum-root
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - printmomentum-mariadb:/var/lib/mysql
+
+volumes:
+  printmomentum-mariadb:
