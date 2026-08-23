@@ -23,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class ListingsControllerTest {
 
+	private static final String API_KEY = "test-printmomentum-key";
+
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -34,7 +36,9 @@ class ListingsControllerTest {
 
 	@Test
 	void emptyQueryReturnsEmptyItems() throws Exception {
-		mockMvc.perform(get("/api/v1/listings").param("q", "__no_such_print_tee__"))
+		mockMvc.perform(get("/api/v1/listings")
+						.param("q", "__no_such_print_tee__")
+						.header(ApiKeyInterceptor.HEADER, API_KEY))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items").isArray())
 				.andExpect(jsonPath("$.items").isEmpty())
@@ -48,7 +52,7 @@ class ListingsControllerTest {
 		seedPrintTee(9101L, "BE009 high momentum tee", "0.900000000", "Shop High");
 		seedPrintTee(9102L, "BE009 low momentum tee", "0.100000000", "Shop Low");
 
-		mockMvc.perform(get("/api/v1/listings").param("q", "BE009"))
+		mockMvc.perform(get("/api/v1/listings").param("q", "BE009").header(ApiKeyInterceptor.HEADER, API_KEY))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items.length()").value(2))
 				.andExpect(jsonPath("$.items[0].listingId").value(9101))
@@ -71,7 +75,10 @@ class ListingsControllerTest {
 		seedPrintTee(9111L, "BE009size high", "0.800000000", "Shop A");
 		seedPrintTee(9112L, "BE009size low", "0.200000000", "Shop B");
 
-		mockMvc.perform(get("/api/v1/listings").param("q", "BE009size").param("size", "1"))
+		mockMvc.perform(get("/api/v1/listings")
+						.param("q", "BE009size")
+						.param("size", "1")
+						.header(ApiKeyInterceptor.HEADER, API_KEY))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items.length()").value(1))
 				.andExpect(jsonPath("$.size").value(1))
@@ -81,7 +88,7 @@ class ListingsControllerTest {
 
 	@Test
 	void sizeOneThousandIsBadRequest() throws Exception {
-		mockMvc.perform(get("/api/v1/listings").param("size", "1000"))
+		mockMvc.perform(get("/api/v1/listings").param("size", "1000").header(ApiKeyInterceptor.HEADER, API_KEY))
 				.andExpect(status().isBadRequest());
 	}
 

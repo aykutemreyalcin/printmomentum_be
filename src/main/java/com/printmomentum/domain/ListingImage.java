@@ -28,6 +28,9 @@ public class ListingImage {
 	@Column(name = "`rank`", nullable = false)
 	private int rank;
 
+	@Column(name = "storage_key", length = 512)
+	private String storageKey;
+
 	protected ListingImage() {
 	}
 
@@ -62,5 +65,13 @@ public class ListingImage {
 
 	public void setRank(int rank) {
 		this.rank = rank;
+	}
+
+	public String getStorageKey() {
+		return storageKey;
+	}
+
+	public void setStorageKey(String storageKey) {
+		this.storageKey = storageKey;
 	}
 }

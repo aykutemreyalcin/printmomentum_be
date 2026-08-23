@@ -11,6 +11,7 @@ import com.printmomentum.domain.PrintTeeClassification;
 import com.printmomentum.domain.PrintTeeClassifier;
 import com.printmomentum.domain.Shop;
 import com.printmomentum.domain.ShopRepository;
+import com.printmomentum.storage.ListingImageCache;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -39,6 +40,8 @@ public class ListingIngestJob {
 	private final ListingRepository listingRepository;
 	private final ListingSnapshotRepository listingSnapshotRepository;
 	private final ListingRanker listingRanker;
+	private final ListingImageCache listingImageCache;
+	private final EtsyQuotaTracker quotaTracker;
 	private final TransactionTemplate transactionTemplate;
 	private final ObjectMapper objectMapper;
 
@@ -50,6 +53,8 @@ public class ListingIngestJob {
 			ListingRepository listingRepository,
 			ListingSnapshotRepository listingSnapshotRepository,
 			ListingRanker listingRanker,
+			ListingImageCache listingImageCache,
+			EtsyQuotaTracker quotaTracker,
 			PlatformTransactionManager transactionManager,
 			ObjectMapper objectMapper) {
 		this.etsyClient = etsyClient;
@@ -59,6 +64,8 @@ public class ListingIngestJob {
 		this.listingRepository = listingRepository;
 		this.listingSnapshotRepository = listingSnapshotRepository;
 		this.listingRanker = listingRanker;
+		this.listingImageCache = listingImageCache;
+		this.quotaTracker = quotaTracker;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
 		this.objectMapper = objectMapper;
 	}
@@ -69,6 +76,15 @@ public class ListingIngestJob {
 	}
 
 	public IngestResult run() {
+		Integer remaining = quotaTracker.remainingToday();
+		if (remaining != null && remaining < properties.minRemainingToday()) {
+			log.warn(
+					"ingest skip remaining-today={} threshold={}",
+					remaining,
+					properties.minRemainingToday());
+			return new IngestResult(null, 0, 0);
+		}
+
 		UUID crawlRunId = UUID.randomUUID();
 		Instant observedAt = Instant.now();
 		int stored = 0;
@@ -202,7 +218,9 @@ public class ListingIngestJob {
 			return;
 		}
 		for (EtsyImage image : images) {
-			listing.addImage(new ListingImage(image.url(), image.rank()));
+			ListingImage stored = new ListingImage(image.url(), image.rank());
+			listingImageCache.cache(listing.getListingId(), image.rank(), image.url()).ifPresent(stored::setStorageKey);
+			listing.addImage(stored);
 		}
 	}
 

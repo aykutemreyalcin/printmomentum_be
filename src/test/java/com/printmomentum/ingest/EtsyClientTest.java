@@ -43,7 +43,7 @@ class EtsyClientTest {
 				0);
 		RestClient restClient = builder
 				.defaultHeader("x-api-key", "test-api-key")
-				.requestInterceptor(new EtsyRetryInterceptor(properties))
+				.requestInterceptor(new EtsyRetryInterceptor(properties, new EtsyQuotaTracker()))
 				.build();
 		client = new EtsyClient(restClient, new EtsyListingMapper(new ObjectMapper()));
 	}

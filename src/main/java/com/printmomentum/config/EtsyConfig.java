@@ -1,5 +1,6 @@
 package com.printmomentum.config;
 
+import com.printmomentum.ingest.EtsyQuotaTracker;
 import com.printmomentum.ingest.EtsyRetryInterceptor;
 import java.net.http.HttpClient;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -13,7 +14,12 @@ import org.springframework.web.client.RestClient;
 public class EtsyConfig {
 
 	@Bean
-	RestClient etsyRestClient(EtsyProperties properties) {
+	EtsyQuotaTracker etsyQuotaTracker() {
+		return new EtsyQuotaTracker();
+	}
+
+	@Bean
+	RestClient etsyRestClient(EtsyProperties properties, EtsyQuotaTracker quotaTracker) {
 		HttpClient httpClient = HttpClient.newBuilder()
 				.connectTimeout(properties.connectTimeout())
 				.build();
@@ -23,7 +29,7 @@ public class EtsyConfig {
 				.baseUrl(properties.baseUrl())
 				.defaultHeader("x-api-key", properties.apiKey() == null ? "" : properties.apiKey())
 				.requestFactory(requestFactory)
-				.requestInterceptor(new EtsyRetryInterceptor(properties))
+				.requestInterceptor(new EtsyRetryInterceptor(properties, quotaTracker))
 				.build();
 	}
 }

@@ -4,3 +4,6 @@ printmomentum:
       - keywords: graphic tee
       - keywords: printed t-shirt
       - keywords: DTG t-shirt
+  taxonomy:
+    fallback-ids:
+      - 1603
