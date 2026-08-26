@@ -23,7 +23,12 @@ class FlywayMigrationTest {
 		assertThat(tableCount("listing_image")).isEqualTo(1);
 		assertThat(tableCount("listing_snapshot")).isEqualTo(1);
 		assertThat(tableCount("api_client")).isEqualTo(1);
-		assertThat(flywayVersion()).isEqualTo("6");
+		assertThat(tableCount("user_role")).isEqualTo(1);
+		assertThat(tableCount("app_user")).isEqualTo(1);
+		assertThat(tableCount("user_session")).isEqualTo(1);
+		assertThat(tableCount("user_favorite")).isEqualTo(1);
+		assertThat(tableCount("listing_query")).isEqualTo(1);
+		assertThat(flywayVersion()).isEqualTo("9");
 	}
 
 	@Test

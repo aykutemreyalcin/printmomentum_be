@@ -9,6 +9,10 @@ public record IngestProperties(
 		@DefaultValue("false") boolean enabled,
 		@DefaultValue("-") String cron,
 		@DefaultValue("25") int limit,
+		@DefaultValue("2") int pagesPerQuery,
+		@DefaultValue("true") boolean createdPage,
+		@DefaultValue("100") int reviewLimit,
+		@DefaultValue("90") int queryHitRetentionDays,
 		@DefaultValue("100") int topN,
 		@DefaultValue("100") int minRemainingToday,
 		List<Query> queries) {

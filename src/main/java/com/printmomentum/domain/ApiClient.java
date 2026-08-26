@@ -8,8 +8,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "api_client")
@@ -25,7 +23,6 @@ public class ApiClient {
 	@Column(name = "api_key", nullable = false, length = 64, unique = true)
 	private String apiKey;
 
-	@JdbcTypeCode(SqlTypes.TINYINT)
 	@Column(nullable = false)
 	private boolean active = true;
 

@@ -9,6 +9,7 @@ includeWeights:
   dtg: 0.3
   sublimation: 0.3
   mockup: 0.3
+  custom: 0.3
 includeKeywords:
   tee:
     - tee
@@ -40,9 +41,21 @@ includeKeywords:
     - mock-up
     - mock up
     - printable
+  custom:
+    - custom
+    - personalized
+    - personalised
+    - custom name
+    - custom text
 excludeKeywords:
   vintage:
-    - vintage
+    - authentic vintage
+    - true vintage
+    - vintage clothing
+    - vintage 70s
+    - vintage 80s
+    - vintage 90s
+    - single stitch
   used:
     - used
     - pre-owned

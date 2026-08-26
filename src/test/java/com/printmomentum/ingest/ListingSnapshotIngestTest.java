@@ -16,11 +16,16 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
+@TestPropertySource(properties = {
+		"printmomentum.ingest.pages-per-query=1",
+		"printmomentum.ingest.created-page=false"
+})
 class ListingSnapshotIngestTest {
 
 	private static final long TRACKED_ID = 6001L;
@@ -34,18 +39,23 @@ class ListingSnapshotIngestTest {
 	@Autowired
 	private ListingSnapshotRepository listingSnapshotRepository;
 
+	@Autowired
+	private com.printmomentum.config.IngestProperties ingestProperties;
+
 	@MockitoBean
 	private EtsyClient etsyClient;
 
 	@Test
 	void twoCrawlsAppendSnapshotsAndSetFirstSeenInTopOnce() {
+		int[] calls = {0};
 		when(etsyClient.searchActive(anyString(), nullable(Long.class), anyInt(), anyInt()))
-				.thenReturn(pageWithTrackedAt(5, 10))
-				.thenReturn(pageWithTrackedAt(5, 10))
-				.thenReturn(pageWithTrackedAt(5, 10))
-				.thenReturn(pageWithTrackedAt(40, 22))
-				.thenReturn(pageWithTrackedAt(40, 22))
-				.thenReturn(pageWithTrackedAt(40, 22));
+				.thenAnswer(invocation -> {
+					calls[0]++;
+					if (calls[0] <= ingestProperties.queries().size()) {
+						return pageWithTrackedAt(5, 10);
+					}
+					return pageWithTrackedAt(40, 22);
+				});
 
 		ingestJob.run();
 		Listing afterFirst = listingRepository.findById(TRACKED_ID).orElseThrow();
@@ -67,6 +77,17 @@ class ListingSnapshotIngestTest {
 		assertThat(snapshots.get(1).getPosition()).isEqualTo(40);
 		assertThat(snapshots.get(1).getNumFavorers()).isEqualTo(22);
 		assertThat(snapshots.get(0).getCrawlRunId()).isNotEqualTo(snapshots.get(1).getCrawlRunId());
+	}
+
+	@Test
+	void unchangedSignalsDoNotAppendASecondSnapshot() {
+		when(etsyClient.searchActive(anyString(), nullable(Long.class), anyInt(), anyInt()))
+				.thenReturn(pageWithTrackedAt(5, 10));
+
+		ingestJob.run();
+		ingestJob.run();
+
+		assertThat(listingSnapshotRepository.findByListingListingIdOrderByIdAsc(TRACKED_ID)).hasSize(1);
 	}
 
 	private static EtsySearchPage pageWithTrackedAt(int position, int favorers) {
@@ -95,6 +116,10 @@ class ListingSnapshotIngestTest {
 				Instant.parse("2026-01-01T00:00:00Z"),
 				Instant.parse("2026-01-02T00:00:00Z"),
 				"active",
-				List.of());
+				List.of(),
+				10,
+				"i_did",
+				"made_to_order",
+				null);
 	}
 }

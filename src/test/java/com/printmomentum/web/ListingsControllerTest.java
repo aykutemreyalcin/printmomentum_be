@@ -15,15 +15,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@WithMockUser(roles = "user")
 class ListingsControllerTest {
-
-	private static final String API_KEY = "test-printmomentum-key";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -36,9 +36,7 @@ class ListingsControllerTest {
 
 	@Test
 	void emptyQueryReturnsEmptyItems() throws Exception {
-		mockMvc.perform(get("/api/v1/listings")
-						.param("q", "__no_such_print_tee__")
-						.header(ApiKeyInterceptor.HEADER, API_KEY))
+		mockMvc.perform(get("/api/v1/listings").param("q", "__no_such_print_tee__"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items").isArray())
 				.andExpect(jsonPath("$.items").isEmpty())
@@ -52,7 +50,7 @@ class ListingsControllerTest {
 		seedPrintTee(9101L, "BE009 high momentum tee", "0.900000000", "Shop High");
 		seedPrintTee(9102L, "BE009 low momentum tee", "0.100000000", "Shop Low");
 
-		mockMvc.perform(get("/api/v1/listings").param("q", "BE009").header(ApiKeyInterceptor.HEADER, API_KEY))
+		mockMvc.perform(get("/api/v1/listings").param("q", "BE009"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items.length()").value(2))
 				.andExpect(jsonPath("$.items[0].listingId").value(9101))
@@ -75,10 +73,7 @@ class ListingsControllerTest {
 		seedPrintTee(9111L, "BE009size high", "0.800000000", "Shop A");
 		seedPrintTee(9112L, "BE009size low", "0.200000000", "Shop B");
 
-		mockMvc.perform(get("/api/v1/listings")
-						.param("q", "BE009size")
-						.param("size", "1")
-						.header(ApiKeyInterceptor.HEADER, API_KEY))
+		mockMvc.perform(get("/api/v1/listings").param("q", "BE009size").param("size", "1"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items.length()").value(1))
 				.andExpect(jsonPath("$.size").value(1))
@@ -88,8 +83,23 @@ class ListingsControllerTest {
 
 	@Test
 	void sizeOneThousandIsBadRequest() throws Exception {
-		mockMvc.perform(get("/api/v1/listings").param("size", "1000").header(ApiKeyInterceptor.HEADER, API_KEY))
+		mockMvc.perform(get("/api/v1/listings").param("size", "1000"))
 				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void bestsellerPresetReturnsOnlyFlaggedListings() throws Exception {
+		seedPrintTee(9121L, "BE009 bestseller tee", "0.900000000", "Shop High");
+		Listing listing = listingRepository.findById(9121L).orElseThrow();
+		listing.setEtsyBestseller(true);
+		listingRepository.save(listing);
+		seedPrintTee(9122L, "BE009 regular tee", "0.800000000", "Shop Low");
+
+		mockMvc.perform(get("/api/v1/listings").param("q", "BE009").param("bestseller", "true"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items.length()").value(1))
+				.andExpect(jsonPath("$.items[0].listingId").value(9121))
+				.andExpect(jsonPath("$.items[0].etsyBestseller").value(true));
 	}
 
 	private void seedPrintTee(long listingId, String title, String lastScore, String shopName) {

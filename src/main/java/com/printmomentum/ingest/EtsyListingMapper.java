@@ -37,6 +37,14 @@ public class EtsyListingMapper {
 		return readTaxonomy(readTree(body));
 	}
 
+	public List<java.time.Instant> readReviewCreatedAt(InputStream body) {
+		return readReviewCreatedAt(readTree(body));
+	}
+
+	public List<java.time.Instant> readReviewCreatedAt(String json) {
+		return readReviewCreatedAt(readTree(json));
+	}
+
 	EtsySearchPage readSearch(JsonNode root) {
 		int count = root.path("count").asInt(0);
 		List<EtsyListing> results = new ArrayList<>();
@@ -65,7 +73,11 @@ public class EtsyListingMapper {
 				instantOrNull(node, "original_creation_timestamp"),
 				instantOrNull(node, "updated_timestamp"),
 				textOrNull(node, "state"),
-				readImages(node.path("images")));
+				readImages(node.path("images")),
+				intOrNull(node, "views"),
+				textOrNull(node, "who_made"),
+				textOrNull(node, "when_made"),
+				readShop(node));
 	}
 
 	List<EtsyTaxonomyNode> readTaxonomy(JsonNode root) {
@@ -74,6 +86,17 @@ public class EtsyListingMapper {
 			nodes.add(readTaxonomyNode(item));
 		}
 		return List.copyOf(nodes);
+	}
+
+	List<Instant> readReviewCreatedAt(JsonNode root) {
+		List<Instant> created = new ArrayList<>();
+		for (JsonNode item : root.path("results")) {
+			Instant at = instantOrNull(item, "created_timestamp");
+			if (at != null) {
+				created.add(at);
+			}
+		}
+		return List.copyOf(created);
 	}
 
 	private EtsyTaxonomyNode readTaxonomyNode(JsonNode node) {
@@ -100,13 +123,54 @@ public class EtsyListingMapper {
 	private List<EtsyImage> readImages(JsonNode images) {
 		List<EtsyImage> result = new ArrayList<>();
 		for (JsonNode image : images) {
-			String url = firstText(image, "url_fullxfull", "url");
+			String url = firstText(image, "url_570xN", "url_fullxfull", "url");
 			if (url == null) {
 				continue;
 			}
 			result.add(new EtsyImage(url, image.path("rank").asInt(0)));
 		}
 		return List.copyOf(result);
+	}
+
+	private EtsyShop readShop(JsonNode listing) {
+		JsonNode shop = listing.get("Shop");
+		if (shop == null || shop.isNull() || shop.isMissingNode()) {
+			shop = listing.get("shop");
+		}
+		if (shop == null || shop.isNull() || shop.isMissingNode() || shop.isEmpty()) {
+			return null;
+		}
+		Long shopId = longOrNull(shop, "shop_id");
+		if (shopId == null) {
+			return null;
+		}
+		return new EtsyShop(
+				shopId,
+				firstText(shop, "shop_name", "name"),
+				textOrNull(shop, "url"),
+				firstText(shop, "icon_url_fullxfull", "icon_url_570xN", "icon_url"),
+				intOrNull(shop, "transaction_sold_count"),
+				intOrNull(shop, "listing_active_count"),
+				intOrNull(shop, "review_count"),
+				decimalOrNull(shop, "review_average"),
+				instantOrNull(shop, "create_date") != null
+						? instantOrNull(shop, "create_date")
+						: instantOrNull(shop, "created_timestamp"));
+	}
+
+	private static java.math.BigDecimal decimalOrNull(JsonNode node, String field) {
+		JsonNode value = node.get(field);
+		if (value == null || value.isNull() || value.isMissingNode()) {
+			return null;
+		}
+		if (value.isNumber()) {
+			return java.math.BigDecimal.valueOf(value.asDouble());
+		}
+		try {
+			return new java.math.BigDecimal(value.asString());
+		} catch (NumberFormatException ex) {
+			return null;
+		}
 	}
 
 	private JsonNode readTree(InputStream body) {

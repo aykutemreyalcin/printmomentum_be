@@ -18,5 +18,9 @@ public record EtsyListing(
 		Instant originalCreatedAt,
 		Instant updatedAt,
 		String state,
-		List<EtsyImage> images) {
+		List<EtsyImage> images,
+		Integer views,
+		String whoMade,
+		String whenMade,
+		EtsyShop shop) {
 }

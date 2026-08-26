@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.printmomentum.domain.Listing;
@@ -14,11 +17,16 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
+@TestPropertySource(properties = {
+		"printmomentum.ingest.pages-per-query=1",
+		"printmomentum.ingest.created-page=false"
+})
 class ListingIngestJobTest {
 
 	@Autowired
@@ -61,6 +69,8 @@ class ListingIngestJobTest {
 		assertThat(second.crawlRunId()).isNotEqualTo(first.crawlRunId());
 		assertThat(second.stored()).isEqualTo(2);
 		assertThat(second.skipped()).isEqualTo(1);
+
+		verify(etsyClient, atLeastOnce()).searchActive(anyString(), eq(1603L), anyInt(), anyInt());
 	}
 
 	private List<Long> storedIds() {
@@ -86,7 +96,11 @@ class ListingIngestJobTest {
 				Instant.parse("2026-01-01T00:00:00Z"),
 				Instant.parse("2026-01-02T00:00:00Z"),
 				"active",
-				List.of(new EtsyImage("https://i.etsystatic.com/" + listingId + ".jpg", 1)));
+				List.of(new EtsyImage("https://i.etsystatic.com/" + listingId + ".jpg", 1)),
+				120,
+				"i_did",
+				"made_to_order",
+				null);
 	}
 
 	private static EtsyListing excludedHoodie(long listingId) {
@@ -105,6 +119,10 @@ class ListingIngestJobTest {
 				Instant.parse("2026-01-01T00:00:00Z"),
 				Instant.parse("2026-01-02T00:00:00Z"),
 				"active",
-				List.of());
+				List.of(),
+				null,
+				null,
+				null,
+				null);
 	}
 }
