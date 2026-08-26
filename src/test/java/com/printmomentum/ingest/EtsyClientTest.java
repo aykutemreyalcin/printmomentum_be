@@ -50,7 +50,7 @@ class EtsyClientTest {
 
 	@Test
 	void searchActiveMapsListingIdTitleAndFavorers() {
-		server.expect(requestTo("https://openapi.etsy.com/v3/application/listings/active?keywords=graphic%20tee&limit=25&offset=0&sort_on=score&sort_order=desc"))
+		server.expect(requestTo("https://openapi.etsy.com/v3/application/listings/active?keywords=graphic%20tee&limit=25&offset=0&sort_on=score&sort_order=desc&includes=Images,Shop"))
 				.andExpect(method(HttpMethod.GET))
 				.andExpect(header("x-api-key", "test-api-key"))
 				.andRespond(withSuccess(new ClassPathResource("etsy/search-active.json"), MediaType.APPLICATION_JSON));
@@ -66,7 +66,7 @@ class EtsyClientTest {
 
 	@Test
 	void getListingMapsDocumentedFields() {
-		server.expect(requestTo("https://openapi.etsy.com/v3/application/listings/1147645830?includes=Images"))
+		server.expect(requestTo("https://openapi.etsy.com/v3/application/listings/1147645830?includes=Images,Shop"))
 				.andExpect(method(HttpMethod.GET))
 				.andRespond(withSuccess(new ClassPathResource("etsy/listing.json"), MediaType.APPLICATION_JSON));
 
@@ -99,8 +99,21 @@ class EtsyClientTest {
 	}
 
 	@Test
+	void getListingReviewsMapsCreatedTimestampsWithoutBodies() {
+		server.expect(requestTo("https://openapi.etsy.com/v3/application/listings/1147645830/reviews?limit=100"))
+				.andExpect(method(HttpMethod.GET))
+				.andRespond(withSuccess(new ClassPathResource("etsy/reviews.json"), MediaType.APPLICATION_JSON));
+
+		List<java.time.Instant> created = client.getListingReviews(1147645830L, 100);
+
+		assertThat(created).hasSize(3);
+		assertThat(created.get(0)).isEqualTo(java.time.Instant.ofEpochSecond(1756166400L));
+		server.verify();
+	}
+
+	@Test
 	void retriesOn429ThenFails() {
-		server.expect(times(3), requestTo("https://openapi.etsy.com/v3/application/listings/active?keywords=graphic%20tee&limit=25&offset=0&sort_on=score&sort_order=desc"))
+		server.expect(times(3), requestTo("https://openapi.etsy.com/v3/application/listings/active?keywords=graphic%20tee&limit=25&offset=0&sort_on=score&sort_order=desc&includes=Images,Shop"))
 				.andExpect(method(HttpMethod.GET))
 				.andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
 						.header("retry-after", "0")

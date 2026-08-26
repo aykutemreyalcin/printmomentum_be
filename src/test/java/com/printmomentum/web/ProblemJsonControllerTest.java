@@ -13,6 +13,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,18 +22,15 @@ import org.springframework.web.bind.annotation.RestController;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(ProblemJsonControllerTest.EtsyDownProbe.class)
+@WithMockUser(roles = "user")
 class ProblemJsonControllerTest {
-
-	private static final String API_KEY = "test-printmomentum-key";
 
 	@Autowired
 	private MockMvc mockMvc;
 
 	@Test
 	void invalidPageSizeIsProblemJson400() throws Exception {
-		mockMvc.perform(get("/api/v1/listings")
-						.param("size", "1000")
-						.header(ApiKeyInterceptor.HEADER, API_KEY))
+		mockMvc.perform(get("/api/v1/listings").param("size", "1000"))
 				.andExpect(status().isBadRequest())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
 				.andExpect(jsonPath("$.status").value(400))
@@ -43,7 +41,7 @@ class ProblemJsonControllerTest {
 
 	@Test
 	void missingListingIsProblemJson404() throws Exception {
-		mockMvc.perform(get("/api/v1/listings/999999999").header(ApiKeyInterceptor.HEADER, API_KEY))
+		mockMvc.perform(get("/api/v1/listings/999999999"))
 				.andExpect(status().isNotFound())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
 				.andExpect(jsonPath("$.status").value(404))
@@ -53,7 +51,7 @@ class ProblemJsonControllerTest {
 
 	@Test
 	void etsyUnavailableIsProblemJson503() throws Exception {
-		mockMvc.perform(get("/api/v1/__probe/etsy-down").header(ApiKeyInterceptor.HEADER, API_KEY))
+		mockMvc.perform(get("/api/v1/__probe/etsy-down"))
 				.andExpect(status().isServiceUnavailable())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
 				.andExpect(jsonPath("$.status").value(503))

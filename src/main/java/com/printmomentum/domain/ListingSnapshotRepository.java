@@ -11,4 +11,6 @@ public interface ListingSnapshotRepository extends JpaRepository<ListingSnapshot
 	List<ListingSnapshot> findTop2ByListingListingIdOrderByIdDesc(Long listingId);
 
 	List<ListingSnapshot> findByListingListingIdOrderByObservedAtDescIdDesc(Long listingId, Pageable pageable);
+
+	List<ListingSnapshot> findByListingListingIdOrderByObservedAtAscIdAsc(Long listingId);
 }

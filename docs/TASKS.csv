@@ -33,7 +33,7 @@ INF-002,printmomentum_fe,feat/INF-002-static-hosting,todo,FE-003,Frontend deploy
 # CURSOR PROMPT — CSV satiri degil. Asagidaki blogu kopyala, sadece TASK_ID degistir.
 # =============================================================================
 #
-# PrintMomentum task BE-002 yi dev ustune branch acarak uygula once dev de miyim diye kontrol edip degilsem dev e checkout yap. sonrasinda dev deki degisiklikleri cek.
+# PrintMomentum task FE-004 yi dev ustune branch acarak uygula once dev de miyim diye kontrol edip degilsem dev e checkout yap. sonrasinda dev deki degisiklikleri cek.
 #
 # Kaynak: bu CSV (veya ilgili repodaki docs/TASKS.csv). TASK_ID satirini tamamen oku (repo, branch, depends_on, scope, implementation_notes, test_plan, done_when). Baska taska dokunma, scope genisletme, "bonus" ekleme.
 #

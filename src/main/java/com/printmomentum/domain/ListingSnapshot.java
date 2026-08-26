@@ -35,6 +35,13 @@ public class ListingSnapshot {
 	@Column(nullable = false)
 	private int numFavorers;
 
+	private Integer views;
+
+	private Integer quantity;
+
+	@Column(name = "review_count")
+	private Integer reviewCount;
+
 	protected ListingSnapshot() {
 	}
 
@@ -68,5 +75,37 @@ public class ListingSnapshot {
 
 	public int getNumFavorers() {
 		return numFavorers;
+	}
+
+	public Integer getViews() {
+		return views;
+	}
+
+	public void setViews(Integer views) {
+		this.views = views;
+	}
+
+	public Integer getQuantity() {
+		return quantity;
+	}
+
+	public void setQuantity(Integer quantity) {
+		this.quantity = quantity;
+	}
+
+	public Integer getReviewCount() {
+		return reviewCount;
+	}
+
+	public void setReviewCount(Integer reviewCount) {
+		this.reviewCount = reviewCount;
+	}
+
+	public boolean sameSignals(int position, int numFavorers, Integer views, Integer quantity, Integer reviewCount) {
+		return this.position == position
+				&& this.numFavorers == numFavorers
+				&& java.util.Objects.equals(this.views, views)
+				&& java.util.Objects.equals(this.quantity, quantity)
+				&& java.util.Objects.equals(this.reviewCount, reviewCount);
 	}
 }

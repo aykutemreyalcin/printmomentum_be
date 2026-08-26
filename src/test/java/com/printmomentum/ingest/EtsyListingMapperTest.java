@@ -30,6 +30,7 @@ class EtsyListingMapperTest {
 		assertThat(listing.price().toDecimal()).isEqualByComparingTo(new BigDecimal("24.99"));
 		assertThat(listing.createdAt()).isEqualTo(Instant.ofEpochSecond(1700000000));
 		assertThat(listing.images()).containsExactly(new EtsyImage("https://i.etsystatic.com/example.jpg", 1));
+		assertThat(listing.views()).isEqualTo(999999);
 		assertThat(json).contains("views");
 	}
 

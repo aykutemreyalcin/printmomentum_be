@@ -9,8 +9,8 @@ import java.util.regex.Pattern;
 
 /**
  * Scored print-tee filter (not a single keyword). Apparel (tee language or t-shirt taxonomy)
- * plus print-family signals (print, graphic, DTG, sublimation, mockup) raise the score;
- * vintage / used / embroidery / blank wholesale / hoodie / non-apparel zero it.
+ * plus print-family signals (print, graphic, DTG, sublimation, mockup, custom/personalized) raise the score;
+ * authentic vintage / used / embroidery / blank wholesale / hoodie / non-apparel zero it.
  * <p>
  * Formula: {@code min(1, apparelWeight + sum(matched includeWeights))}, then 0 if any exclude
  * category matches. {@code is_print_tee} at {@code score >= threshold} (default 0.7).

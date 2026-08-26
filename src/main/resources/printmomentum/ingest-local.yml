@@ -1,0 +1,25 @@
+printmomentum:
+  ingest:
+    queries:
+      - keywords: graphic tee
+        taxonomy-id: 1603
+      - keywords: custom t-shirt
+        taxonomy-id: 1603
+      - keywords: personalized t-shirt
+        taxonomy-id: 1603
+      - keywords: comfort colors shirt
+        taxonomy-id: 1603
+      - keywords: teacher shirt
+        taxonomy-id: 1603
+      - keywords: nurse shirt
+        taxonomy-id: 1603
+      - keywords: dog mom shirt
+        taxonomy-id: 1603
+      - keywords: matching family shirts
+        taxonomy-id: 1603
+      - keywords: funny teacher shirt
+        taxonomy-id: 1603
+      - keywords: back to school shirt
+        taxonomy-id: 1603
+      - keywords: halloween shirt
+        taxonomy-id: 1603

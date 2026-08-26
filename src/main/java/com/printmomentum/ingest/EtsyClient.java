@@ -35,6 +35,7 @@ public class EtsyClient {
 						.queryParam("offset", Math.max(offset, 0))
 						.queryParam("sort_on", sortOn)
 						.queryParam("sort_order", sortOrder)
+						.queryParam("includes", "Images,Shop")
 						.build())
 				.exchange((request, response) -> readSearchOrThrow(response.getStatusCode(), response));
 	}
@@ -44,7 +45,7 @@ public class EtsyClient {
 				.get()
 				.uri(uriBuilder -> uriBuilder
 						.path("/listings/{listingId}")
-						.queryParam("includes", "Images")
+						.queryParam("includes", "Images,Shop")
 						.build(listingId))
 				.exchange((request, response) -> readListingOrThrow(response.getStatusCode(), response));
 	}
@@ -54,6 +55,17 @@ public class EtsyClient {
 				.get()
 				.uri("/buyer-taxonomy/nodes")
 				.exchange((request, response) -> readTaxonomyOrThrow(response.getStatusCode(), response));
+	}
+
+	public List<java.time.Instant> getListingReviews(long listingId, int limit) {
+		int capped = Math.min(Math.max(limit, 1), 100);
+		return restClient
+				.get()
+				.uri(uriBuilder -> uriBuilder
+						.path("/listings/{listingId}/reviews")
+						.queryParam("limit", capped)
+						.build(listingId))
+				.exchange((request, response) -> readReviewsOrThrow(response.getStatusCode(), response));
 	}
 
 	private EtsySearchPage readSearchOrThrow(
@@ -72,6 +84,12 @@ public class EtsyClient {
 			HttpStatusCode status, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response) {
 		throwIfUnavailable(status);
 		return mapper.readTaxonomy(body(response));
+	}
+
+	private List<java.time.Instant> readReviewsOrThrow(
+			HttpStatusCode status, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response) {
+		throwIfUnavailable(status);
+		return mapper.readReviewCreatedAt(body(response));
 	}
 
 	private static void throwIfUnavailable(HttpStatusCode status) {

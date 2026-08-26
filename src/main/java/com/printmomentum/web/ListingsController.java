@@ -3,10 +3,13 @@ package com.printmomentum.web;
 import java.math.BigDecimal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -17,9 +20,11 @@ public class ListingsController {
 	private static final int MAX_PAGE_SIZE = 100;
 
 	private final ListingFeedService listingFeedService;
+	private final FavoriteService favoriteService;
 
-	public ListingsController(ListingFeedService listingFeedService) {
+	public ListingsController(ListingFeedService listingFeedService, FavoriteService favoriteService) {
 		this.listingFeedService = listingFeedService;
+		this.favoriteService = favoriteService;
 	}
 
 	@GetMapping("/listings")
@@ -28,11 +33,24 @@ public class ListingsController {
 			@RequestParam(defaultValue = "20") int size,
 			@RequestParam(required = false) Integer maxDaysToTop,
 			@RequestParam(required = false) BigDecimal minScore,
-			@RequestParam(required = false) String q) {
+			@RequestParam(required = false) String q,
+			@RequestParam(required = false) Long shopId,
+			@RequestParam(required = false) String preset,
+			@RequestParam(required = false) Boolean bestseller) {
 		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..100");
 		}
-		return listingFeedService.list(page, size, maxDaysToTop, minScore, q);
+		return listingFeedService.list(page, size, maxDaysToTop, minScore, q, shopId, preset, bestseller);
+	}
+
+	@GetMapping("/favorites")
+	public ListingPageResponse favorites(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..100");
+		}
+		return listingFeedService.favorites(page, size);
 	}
 
 	@GetMapping("/listings/{id}")
@@ -48,5 +66,17 @@ public class ListingsController {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "listing not found");
 		}
 		return detail;
+	}
+
+	@PutMapping("/listings/{id}/favorite")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void addFavorite(@PathVariable long id) {
+		favoriteService.add(id);
+	}
+
+	@DeleteMapping("/listings/{id}/favorite")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void removeFavorite(@PathVariable long id) {
+		favoriteService.remove(id);
 	}
 }
