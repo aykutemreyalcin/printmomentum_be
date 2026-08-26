@@ -50,7 +50,7 @@ class EtsyClientTest {
 
 	@Test
 	void searchActiveMapsListingIdTitleAndFavorers() {
-		server.expect(requestTo("https://openapi.etsy.com/v3/application/listings/active?keywords=graphic%20tee&limit=25&offset=0&sort_on=score&sort_order=desc&includes=Images,Shop"))
+		server.expect(requestTo("https://openapi.etsy.com/v3/application/listings/active?limit=25&offset=0&includes=Images,Shop&keywords=graphic%20tee&sort_on=score&sort_order=desc"))
 				.andExpect(method(HttpMethod.GET))
 				.andExpect(header("x-api-key", "test-api-key"))
 				.andRespond(withSuccess(new ClassPathResource("etsy/search-active.json"), MediaType.APPLICATION_JSON));
@@ -113,7 +113,7 @@ class EtsyClientTest {
 
 	@Test
 	void retriesOn429ThenFails() {
-		server.expect(times(3), requestTo("https://openapi.etsy.com/v3/application/listings/active?keywords=graphic%20tee&limit=25&offset=0&sort_on=score&sort_order=desc&includes=Images,Shop"))
+		server.expect(times(3), requestTo("https://openapi.etsy.com/v3/application/listings/active?limit=25&offset=0&includes=Images,Shop&keywords=graphic%20tee&sort_on=score&sort_order=desc"))
 				.andExpect(method(HttpMethod.GET))
 				.andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
 						.header("retry-after", "0")

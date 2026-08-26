@@ -21,5 +21,8 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
 
 	List<Listing> findByPrintTeeTrueOrderByLastScoreDesc(org.springframework.data.domain.Pageable pageable);
 
+	@Query("select count(l) from Listing l where l.printTee = true and l.reviews30d is not null")
+	long countWithReviews30d();
+
 	long countByShopShopIdAndPrintTeeTrue(Long shopId);
 }

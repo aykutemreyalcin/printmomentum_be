@@ -7,7 +7,7 @@ import java.time.ZonedDateTime;
 public final class CrawlSchedule {
 
 	public static final ZoneId ISTANBUL = ZoneId.of("Europe/Istanbul");
-	public static final int[] HOURS = {0, 6, 12, 18};
+	public static final int[] HOURS = {0, 4, 8, 12, 16, 20};
 
 	private CrawlSchedule() {
 	}

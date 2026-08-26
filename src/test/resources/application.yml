@@ -2,6 +2,9 @@ printmomentum:
   ingest:
     enabled: false
     cron: "-"
+  bestseller:
+    site-search:
+      enabled: false
   auth:
     additional-keys:
       - test-printmomentum-key

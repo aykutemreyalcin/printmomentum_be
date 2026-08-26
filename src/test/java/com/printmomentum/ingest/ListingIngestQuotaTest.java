@@ -20,7 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @TestPropertySource(properties = {
-		"printmomentum.ingest.pages-per-query=1",
+		"printmomentum.ingest.pages-per-sweep=1",
 		"printmomentum.ingest.created-page=false"
 })
 class ListingIngestQuotaTest {
@@ -51,7 +51,8 @@ class ListingIngestQuotaTest {
 		assertThat(result.stored()).isZero();
 		assertThat(result.skipped()).isZero();
 		assertThat(result.crawlRunId()).isNull();
-		verify(etsyClient, never()).searchActive(anyString(), nullable(Long.class), anyInt(), anyInt());
+		verify(etsyClient, never())
+				.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString());
 		assertThat(meterRegistry.find("etsy.remaining.today").gauge()).isNotNull();
 		assertThat(meterRegistry.find("etsy.remaining.today").gauge().value()).isEqualTo(5.0);
 	}
@@ -59,13 +60,14 @@ class ListingIngestQuotaTest {
 	@Test
 	void remainingFiveThousandRunsJob() {
 		quotaTracker.recordRemainingToday(5000);
-		when(etsyClient.searchActive(anyString(), nullable(Long.class), anyInt(), anyInt()))
+		when(etsyClient.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString()))
 				.thenReturn(new EtsySearchPage(0, List.of()));
 
 		IngestResult result = ingestJob.run();
 
 		assertThat(result.crawlRunId()).isNotNull();
-		verify(etsyClient, atLeastOnce()).searchActive(anyString(), nullable(Long.class), anyInt(), anyInt());
+		verify(etsyClient, atLeastOnce())
+				.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString());
 		assertThat(meterRegistry.find("etsy.remaining.today").gauge().value()).isEqualTo(5000.0);
 	}
 }
