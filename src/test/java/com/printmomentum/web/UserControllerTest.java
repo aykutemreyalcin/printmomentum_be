@@ -3,10 +3,14 @@ package com.printmomentum.web;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -18,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class UserControllerTest {
 
 	@Autowired
@@ -34,6 +39,7 @@ class UserControllerTest {
 	}
 
 	@Test
+	@Order(99)
 	void userCanChangeOwnPasswordThenLoginWithNewOne() throws Exception {
 		String token = login("user@printmomentum.local", "User123!");
 
@@ -131,6 +137,134 @@ class UserControllerTest {
 								"""))
 				.andExpect(status().isNotAcceptable())
 				.andExpect(jsonPath("$.detail").value("Email already in use"));
+	}
+
+	@Test
+	void userRoleCannotListMembers() throws Exception {
+		String token = login("user@printmomentum.local", "User123!");
+
+		mockMvc.perform(get("/api/v1/user/members").header("Authorization", "Bearer " + token))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void adminCanListMembers() throws Exception {
+		String adminToken = login("admin@printmomentum.local", "Admin123!");
+
+		mockMvc.perform(get("/api/v1/user/members").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].email").exists())
+				.andExpect(jsonPath("$[0].active").value(true));
+	}
+
+	@Test
+	void adminCanDeactivateUserWhoThenCannotLogin() throws Exception {
+		String adminToken = login("admin@printmomentum.local", "Admin123!");
+
+		MvcResult created = mockMvc.perform(post("/api/v1/user/register")
+						.header("Authorization", "Bearer " + adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"email":"temp@printmomentum.local","password":"Secret1","name":"Temp","role":"user"}
+								"""))
+				.andExpect(status().isOk())
+				.andReturn();
+		int userId = Integer.parseInt(created.getResponse().getContentAsString());
+
+		mockMvc.perform(patch("/api/v1/user/" + userId + "?status=false")
+						.header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isAccepted());
+
+		mockMvc.perform(post("/api/v2/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"email":"temp@printmomentum.local","password":"Secret1"}
+								"""))
+				.andExpect(status().isNotAcceptable())
+				.andExpect(jsonPath("$.detail").value("This account is deactivated"));
+	}
+
+	@Test
+	void adminCannotDeactivateSelf() throws Exception {
+		String adminToken = login("admin@printmomentum.local", "Admin123!");
+		MvcResult me = mockMvc.perform(get("/api/v1/user").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk())
+				.andReturn();
+		int adminId = com.jayway.jsonpath.JsonPath.read(me.getResponse().getContentAsString(), "$.id");
+
+		mockMvc.perform(patch("/api/v1/user/" + adminId + "?status=false")
+						.header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isNotAcceptable())
+				.andExpect(jsonPath("$.detail").value("Cannot deactivate your own account"));
+	}
+
+	@Test
+	void userCanUpdateDisplayName() throws Exception {
+		String token = login("user@printmomentum.local", "User123!");
+
+		mockMvc.perform(put("/api/v1/user")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"name":"Pat","displayName":"Pat Print"}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Pat"))
+				.andExpect(jsonPath("$.displayName").value("Pat Print"));
+	}
+
+	@Test
+	@Order(1)
+	void userCanChangeEmailWithCurrentPasswordThenLoginWithNewEmail() throws Exception {
+		String nextEmail = "user-" + System.nanoTime() + "@printmomentum.local";
+		String token = login("user@printmomentum.local", "User123!");
+
+		mockMvc.perform(put("/api/v1/user")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"name":"User","displayName":"User","email":"%s","currentPassword":"User123!"}
+								""".formatted(nextEmail)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.email").value(nextEmail));
+
+		mockMvc.perform(post("/api/v2/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"email":"user@printmomentum.local","password":"User123!"}
+								"""))
+				.andExpect(status().isUnauthorized());
+
+		mockMvc.perform(post("/api/v2/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"email":"%s","password":"User123!"}
+								""".formatted(nextEmail)))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void adminCanReadMemberSessionsAndLastLogin() throws Exception {
+		String adminToken = login("admin@printmomentum.local", "Admin123!");
+		String members = mockMvc.perform(get("/api/v1/user/members").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.email=='admin@printmomentum.local')].lastLoginAt").isNotEmpty())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		int adminId = com.jayway.jsonpath.JsonPath.read(
+				mockMvc.perform(get("/api/v1/user").header("Authorization", "Bearer " + adminToken))
+						.andReturn()
+						.getResponse()
+						.getContentAsString(),
+				"$.id");
+
+		mockMvc.perform(get("/api/v1/user/members/" + adminId + "/sessions")
+						.header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].active").value(true))
+				.andExpect(jsonPath("$[0].lastUsedAt").isNotEmpty());
+		assert members.contains("admin@printmomentum.local");
 	}
 
 	private String login(String email, String password) throws Exception {

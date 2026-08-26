@@ -63,6 +63,7 @@ public class ListingIngestJob {
 	private final ListingImageCache listingImageCache;
 	private final EtsyQuotaTracker quotaTracker;
 	private final BestsellerMarker bestsellerMarker;
+	private final IngestStatusStore ingestStatusStore;
 	private final TransactionTemplate transactionTemplate;
 	private final ObjectMapper objectMapper;
 
@@ -82,6 +83,7 @@ public class ListingIngestJob {
 			ListingImageCache listingImageCache,
 			EtsyQuotaTracker quotaTracker,
 			BestsellerMarker bestsellerMarker,
+			IngestStatusStore ingestStatusStore,
 			PlatformTransactionManager transactionManager,
 			ObjectMapper objectMapper) {
 		this.etsyClient = etsyClient;
@@ -99,6 +101,7 @@ public class ListingIngestJob {
 		this.listingImageCache = listingImageCache;
 		this.quotaTracker = quotaTracker;
 		this.bestsellerMarker = bestsellerMarker;
+		this.ingestStatusStore = ingestStatusStore;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
 		this.objectMapper = objectMapper;
 	}
@@ -109,17 +112,29 @@ public class ListingIngestJob {
 	}
 
 	public IngestResult run() {
+		Instant startedAt = Instant.now();
+		ingestStatusStore.markStarted(startedAt);
+		try {
+			return runInternal(startedAt);
+		} catch (RuntimeException exception) {
+			ingestStatusStore.markError(Instant.now(), exception.getMessage());
+			throw exception;
+		}
+	}
+
+	private IngestResult runInternal(Instant startedAt) {
 		Integer remaining = quotaTracker.remainingToday();
 		if (remaining != null && remaining < properties.minRemainingToday()) {
 			log.warn(
 					"ingest skip remaining-today={} threshold={}",
 					remaining,
 					properties.minRemainingToday());
+			ingestStatusStore.markSkippedQuota(startedAt);
 			return new IngestResult(null, 0, 0);
 		}
 
 		UUID crawlRunId = UUID.randomUUID();
-		Instant observedAt = Instant.now();
+		Instant observedAt = startedAt;
 		int stored = 0;
 		int skipped = 0;
 		Set<Long> seenListingIds = new HashSet<>();
@@ -185,6 +200,7 @@ public class ListingIngestJob {
 		refreshReviewsIfNoon(observedAt);
 		bestsellerMarker.refresh(observedAt);
 		log.info("ingest done crawl_run_id={} stored={} skipped={}", crawlRunId, stored, skipped);
+		ingestStatusStore.markOk(Instant.now(), stored, skipped);
 		return new IngestResult(crawlRunId, stored, skipped);
 	}
 

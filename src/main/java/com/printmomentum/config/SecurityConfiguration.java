@@ -71,7 +71,7 @@ public class SecurityConfiguration {
 						.hasAnyRole(admin.name(), user.name())
 						.requestMatchers("/api/v1/query-stats")
 						.hasAnyRole(admin.name(), user.name())
-						.requestMatchers("/api/v1/user/register")
+						.requestMatchers("/api/v1/user/register", "/api/v1/user/members", "/api/v1/user/members/**")
 						.hasRole(admin.name())
 						.requestMatchers("/api/v1/user/**")
 						.hasAnyRole(admin.name(), user.name())
