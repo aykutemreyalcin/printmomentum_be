@@ -22,6 +22,9 @@ class HealthControllerTest {
 		mockMvc.perform(get("/api/v1/health"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("ok"))
-				.andExpect(jsonPath("$.service").value("printmomentum-be"));
+				.andExpect(jsonPath("$.service").value("printmomentum-be"))
+				.andExpect(jsonPath("$.indexedListings").isNumber())
+				.andExpect(jsonPath("$.nextCrawlAt").isNotEmpty())
+				.andExpect(jsonPath("$.lastOutcome").value("never"));
 	}
 }

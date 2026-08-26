@@ -150,4 +150,12 @@ public class UserSession {
 	public void setLastUsedAt(LocalDateTime lastUsedAt) {
 		this.lastUsedAt = lastUsedAt;
 	}
+
+	public LocalDateTime getLastUsedAt() {
+		return lastUsedAt;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
 }

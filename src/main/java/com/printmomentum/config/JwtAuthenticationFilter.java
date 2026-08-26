@@ -134,6 +134,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			}
 
 			if (jwtService.isTokenValid(jwt, userDetails) && isV2AccessToken) {
+				if (!userDetails.isEnabled()) {
+					logger.warn("auth_reason=AUTH_INACTIVE user={} request={} method={}",
+							userEmail, request.getRequestURI(), request.getMethod());
+					markTokenAsFailed(jwt, userEmail);
+					sendUnauthorizedResponse(response, "This account is deactivated");
+					return;
+				}
 				UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
 						userDetails, null, userDetails.getAuthorities());
 				authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -153,6 +160,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		filterChain.doFilter(request, response);
+	}
+
+	public void evictUser(String email) {
+		if (email != null && !email.isBlank()) {
+			userDetailsCache.invalidate(email);
+		}
 	}
 
 	private boolean isWhiteListed(String requestPath) {

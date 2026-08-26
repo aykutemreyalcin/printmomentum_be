@@ -73,6 +73,10 @@ public class User implements UserDetails {
 		return email;
 	}
 
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
 	public UserRole getRole() {
 		return role;
 	}
@@ -121,6 +125,6 @@ public class User implements UserDetails {
 
 	@Override
 	public boolean isEnabled() {
-		return true;
+		return Boolean.TRUE.equals(active);
 	}
 }
