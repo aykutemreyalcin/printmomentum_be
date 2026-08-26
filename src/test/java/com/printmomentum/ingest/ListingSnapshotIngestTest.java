@@ -23,8 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @Transactional
 @TestPropertySource(properties = {
-		"printmomentum.ingest.pages-per-query=1",
-		"printmomentum.ingest.created-page=false"
+		"printmomentum.ingest.pages-per-sweep=1",
+		"printmomentum.ingest.created-page=false",
+		"printmomentum.ingest.review-limit=0"
 })
 class ListingSnapshotIngestTest {
 
@@ -39,19 +40,16 @@ class ListingSnapshotIngestTest {
 	@Autowired
 	private ListingSnapshotRepository listingSnapshotRepository;
 
-	@Autowired
-	private com.printmomentum.config.IngestProperties ingestProperties;
-
 	@MockitoBean
 	private EtsyClient etsyClient;
 
 	@Test
 	void twoCrawlsAppendSnapshotsAndSetFirstSeenInTopOnce() {
 		int[] calls = {0};
-		when(etsyClient.searchActive(anyString(), nullable(Long.class), anyInt(), anyInt()))
+		when(etsyClient.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString()))
 				.thenAnswer(invocation -> {
 					calls[0]++;
-					if (calls[0] <= ingestProperties.queries().size()) {
+					if (calls[0] == 1) {
 						return pageWithTrackedAt(5, 10);
 					}
 					return pageWithTrackedAt(40, 22);
@@ -81,7 +79,7 @@ class ListingSnapshotIngestTest {
 
 	@Test
 	void unchangedSignalsDoNotAppendASecondSnapshot() {
-		when(etsyClient.searchActive(anyString(), nullable(Long.class), anyInt(), anyInt()))
+		when(etsyClient.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString()))
 				.thenReturn(pageWithTrackedAt(5, 10));
 
 		ingestJob.run();

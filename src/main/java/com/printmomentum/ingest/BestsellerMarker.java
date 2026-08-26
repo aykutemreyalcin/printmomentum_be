@@ -3,6 +3,7 @@ package com.printmomentum.ingest;
 import com.printmomentum.config.BestsellerProperties;
 import com.printmomentum.config.IngestProperties;
 import com.printmomentum.domain.Listing;
+import com.printmomentum.domain.ListingEstimator;
 import com.printmomentum.domain.ListingEvent;
 import com.printmomentum.domain.ListingEventRepository;
 import com.printmomentum.domain.ListingRepository;
@@ -20,9 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class BestsellerMarker {
 
 	private static final Logger log = LoggerFactory.getLogger(BestsellerMarker.class);
+	private static final double PM_MIN_EST_SALES_30D = 25.0;
 
 	private final BestsellerProperties properties;
 	private final IngestProperties ingestProperties;
+	private final ListingEstimator listingEstimator;
 	private final EtsyBestsellerSearch bestsellerSearch;
 	private final ListingRepository listingRepository;
 	private final ListingEventRepository listingEventRepository;
@@ -30,11 +33,13 @@ public class BestsellerMarker {
 	public BestsellerMarker(
 			BestsellerProperties properties,
 			IngestProperties ingestProperties,
+			ListingEstimator listingEstimator,
 			EtsyBestsellerSearch bestsellerSearch,
 			ListingRepository listingRepository,
-			ListingEventRepository listingEventRepository) {
+		 ListingEventRepository listingEventRepository) {
 		this.properties = properties;
 		this.ingestProperties = ingestProperties;
+		this.listingEstimator = listingEstimator;
 		this.bestsellerSearch = bestsellerSearch;
 		this.listingRepository = listingRepository;
 		this.listingEventRepository = listingEventRepository;
@@ -52,7 +57,7 @@ public class BestsellerMarker {
 
 	private void refreshFromSiteSearch(Instant observedAt) {
 		Set<Long> found = new HashSet<>();
-		for (IngestProperties.Query query : ingestProperties.queries()) {
+		for (IngestProperties.Query query : ingestProperties.benchmarkQueries()) {
 			Optional<Set<Long>> pageIds = bestsellerSearch.listingIds(query.keywords());
 			if (pageIds.isEmpty()) {
 				log.warn("bestseller site search failed; leaving etsy_bestseller unchanged");
@@ -94,7 +99,7 @@ public class BestsellerMarker {
 	private void refreshPmFallback(Instant observedAt) {
 		List<Listing> printTees = listingRepository.findByPrintTeeTrue();
 		for (Listing listing : printTees) {
-			boolean likely = listing.getReviews30d() != null && listing.getReviews30d() >= 8;
+			boolean likely = isPmLikely(listing);
 			if (likely && !listing.isPmBestseller()) {
 				listing.setPmBestseller(true);
 				if (listing.getPmBestsellerSince() == null) {
@@ -108,6 +113,19 @@ public class BestsellerMarker {
 				listingEventRepository.save(new ListingEvent(listing, ListingEvent.PM_BESTSELLER_OFF, observedAt));
 			}
 		}
+	}
+
+	private boolean isPmLikely(Listing listing) {
+		Integer reviews30d = listing.getReviews30d();
+		if (reviews30d != null && reviews30d >= 8) {
+			return true;
+		}
+		Double estSales = listingEstimator.estSales(reviews30d);
+		if (estSales != null && estSales >= PM_MIN_EST_SALES_30D) {
+			return true;
+		}
+		Integer deltaFavorers = listing.getDeltaFavorers7d();
+		return deltaFavorers != null && deltaFavorers >= ingestProperties.pmBestsellerMinFavorersDelta7d();
 	}
 
 	private void clearPmFlags(Instant observedAt) {

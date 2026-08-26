@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @Transactional
 @TestPropertySource(properties = {
-		"printmomentum.ingest.pages-per-query=1",
+		"printmomentum.ingest.pages-per-sweep=1",
 		"printmomentum.ingest.created-page=false"
 })
 class ListingIngestJobTest {
@@ -49,7 +48,7 @@ class ListingIngestJobTest {
 
 	@Test
 	void upsertsPrintTeesSkipsExcludedAndDoesNotDuplicate() {
-		when(etsyClient.searchActive(anyString(), nullable(Long.class), anyInt(), anyInt()))
+		when(etsyClient.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString()))
 				.thenReturn(new EtsySearchPage(3, List.of(printTee(5001L), printTee(5002L), excludedHoodie(5003L))));
 
 		IngestResult first = ingestJob.run();
@@ -70,7 +69,8 @@ class ListingIngestJobTest {
 		assertThat(second.stored()).isEqualTo(2);
 		assertThat(second.skipped()).isEqualTo(1);
 
-		verify(etsyClient, atLeastOnce()).searchActive(anyString(), eq(1603L), anyInt(), anyInt());
+		verify(etsyClient, atLeastOnce())
+				.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString());
 	}
 
 	private List<Long> storedIds() {

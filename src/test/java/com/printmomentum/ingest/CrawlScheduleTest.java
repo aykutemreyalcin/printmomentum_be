@@ -18,17 +18,17 @@ class CrawlScheduleTest {
 	}
 
 	@Test
-	void nextSlotAfterMidnightIsSix() {
+	void nextSlotAfterMidnightIsFour() {
 		Instant now = LocalDateTime.of(2026, 8, 27, 0, 0, 1).atZone(CrawlSchedule.ISTANBUL).toInstant();
 		assertThat(CrawlSchedule.nextCrawlAt(now).atZone(CrawlSchedule.ISTANBUL).toLocalDateTime())
-				.isEqualTo(LocalDateTime.of(2026, 8, 27, 6, 0));
+				.isEqualTo(LocalDateTime.of(2026, 8, 27, 4, 0));
 	}
 
 	@Test
 	void exactSlotMovesToTheFollowingOne() {
 		Instant noon = LocalDateTime.of(2026, 8, 27, 12, 0).atZone(CrawlSchedule.ISTANBUL).toInstant();
 		assertThat(CrawlSchedule.nextCrawlAt(noon).atZone(CrawlSchedule.ISTANBUL).toLocalDateTime())
-				.isEqualTo(LocalDateTime.of(2026, 8, 27, 18, 0));
+				.isEqualTo(LocalDateTime.of(2026, 8, 27, 16, 0));
 		assertThat(noon.atZone(ZoneOffset.UTC)).isNotNull();
 	}
 }

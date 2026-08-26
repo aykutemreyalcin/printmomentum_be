@@ -25,18 +25,42 @@ public class EtsyClient {
 	public EtsySearchPage searchActive(
 			String keywords, Long taxonomyId, int limit, int offset, String sortOn, String sortOrder) {
 		int cappedLimit = Math.min(Math.max(limit, 1), 100);
+		var builder = restClient
+				.get()
+				.uri(uriBuilder -> {
+					var uri = uriBuilder
+							.path("/listings/active")
+							.queryParamIfPresent("taxonomy_id", Optional.ofNullable(taxonomyId))
+							.queryParam("limit", cappedLimit)
+							.queryParam("offset", Math.max(offset, 0))
+							.queryParam("includes", "Images,Shop");
+					if (keywords != null && !keywords.isBlank()) {
+						uri = uri.queryParam("keywords", keywords);
+					}
+					if (sortOn != null && !sortOn.isBlank()) {
+						uri = uri.queryParam("sort_on", sortOn);
+					}
+					if (sortOrder != null && !sortOrder.isBlank()) {
+						uri = uri.queryParam("sort_order", sortOrder);
+					}
+					return uri.build();
+				});
+		return builder.exchange((request, response) -> readSearchOrThrow(response.getStatusCode(), response));
+	}
+
+	public EtsySearchPage searchActiveByShop(
+			long shopId, int limit, int offset, String sortOn, String sortOrder) {
+		int cappedLimit = Math.min(Math.max(limit, 1), 100);
 		return restClient
 				.get()
 				.uri(uriBuilder -> uriBuilder
-						.path("/listings/active")
-						.queryParamIfPresent("keywords", Optional.ofNullable(keywords))
-						.queryParamIfPresent("taxonomy_id", Optional.ofNullable(taxonomyId))
+						.path("/shops/{shopId}/listings/active")
 						.queryParam("limit", cappedLimit)
 						.queryParam("offset", Math.max(offset, 0))
-						.queryParam("sort_on", sortOn)
-						.queryParam("sort_order", sortOrder)
+						.queryParam("sort_on", sortOn == null ? "created" : sortOn)
+						.queryParam("sort_order", sortOrder == null ? "desc" : sortOrder)
 						.queryParam("includes", "Images,Shop")
-						.build())
+						.build(shopId))
 				.exchange((request, response) -> readSearchOrThrow(response.getStatusCode(), response));
 	}
 

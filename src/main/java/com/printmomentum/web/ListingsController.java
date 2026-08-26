@@ -17,7 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping(path = "/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ListingsController {
 
-	private static final int MAX_PAGE_SIZE = 100;
+	private static final int MAX_PAGE_SIZE = 200;
 
 	private final ListingFeedService listingFeedService;
 	private final FavoriteService favoriteService;
@@ -38,7 +38,7 @@ public class ListingsController {
 			@RequestParam(required = false) String preset,
 			@RequestParam(required = false) Boolean bestseller) {
 		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..100");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..200");
 		}
 		return listingFeedService.list(page, size, maxDaysToTop, minScore, q, shopId, preset, bestseller);
 	}
@@ -48,7 +48,7 @@ public class ListingsController {
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size) {
 		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..100");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..200");
 		}
 		return listingFeedService.favorites(page, size);
 	}
@@ -59,7 +59,7 @@ public class ListingsController {
 			@RequestParam(defaultValue = "20") int snapshotLimit,
 			@RequestParam(defaultValue = "false") boolean debug) {
 		if (snapshotLimit < 1 || snapshotLimit > MAX_PAGE_SIZE) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "snapshotLimit must be 1..100");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "snapshotLimit must be 1..200");
 		}
 		ListingDetailResponse detail = listingFeedService.detail(id, snapshotLimit, debug);
 		if (detail == null) {

@@ -1,32 +1,10 @@
 printmomentum:
   ingest:
-    # Discovery queries = what Etsy buyers type, not print-shop jargon.
-    # Head terms (graphic tee) still occupy page 1 of the category we index.
-    # Long-tails are 2026 buyer intent (eRank Q1–Q2 2026: tshirt/shirt are top-3,
-    # but converting traffic is custom/personalized + audience + occasion).
-    # taxonomy-id 1603 = Clothing > T-shirts, so mugs/stickers stay out of search.
-    queries:
+    taxonomy-id: 1603
+    benchmark-queries:
       - keywords: graphic tee
         taxonomy-id: 1603
       - keywords: custom t-shirt
-        taxonomy-id: 1603
-      - keywords: personalized t-shirt
-        taxonomy-id: 1603
-      - keywords: comfort colors shirt
-        taxonomy-id: 1603
-      - keywords: teacher shirt
-        taxonomy-id: 1603
-      - keywords: nurse shirt
-        taxonomy-id: 1603
-      - keywords: dog mom shirt
-        taxonomy-id: 1603
-      - keywords: matching family shirts
-        taxonomy-id: 1603
-      - keywords: funny teacher shirt
-        taxonomy-id: 1603
-      - keywords: back to school shirt
-        taxonomy-id: 1603
-      - keywords: halloween shirt
         taxonomy-id: 1603
   taxonomy:
     fallback-ids:

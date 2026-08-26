@@ -18,6 +18,8 @@ import com.printmomentum.domain.QueryStatsId;
 import com.printmomentum.domain.QueryStatsRepository;
 import com.printmomentum.domain.ReviewWindow;
 import com.printmomentum.domain.Shop;
+import com.printmomentum.domain.ShopCrawlQueue;
+import com.printmomentum.domain.ShopCrawlQueueRepository;
 import com.printmomentum.domain.ShopRepository;
 import com.printmomentum.domain.SnapshotDeltas;
 import com.printmomentum.storage.ListingImageCache;
@@ -52,6 +54,7 @@ public class ListingIngestJob {
 	private final PrintTeeClassifier classifier;
 	private final IngestProperties properties;
 	private final ShopRepository shopRepository;
+	private final ShopCrawlQueueRepository shopCrawlQueueRepository;
 	private final ListingRepository listingRepository;
 	private final ListingSnapshotRepository listingSnapshotRepository;
 	private final ListingQueryHitRepository listingQueryHitRepository;
@@ -72,7 +75,8 @@ public class ListingIngestJob {
 			PrintTeeClassifier classifier,
 			IngestProperties properties,
 			ShopRepository shopRepository,
-			ListingRepository listingRepository,
+			ShopCrawlQueueRepository shopCrawlQueueRepository,
+		 ListingRepository listingRepository,
 			ListingSnapshotRepository listingSnapshotRepository,
 			ListingQueryHitRepository listingQueryHitRepository,
 			ListingRanker listingRanker,
@@ -90,6 +94,7 @@ public class ListingIngestJob {
 		this.classifier = classifier;
 		this.properties = properties;
 		this.shopRepository = shopRepository;
+		this.shopCrawlQueueRepository = shopCrawlQueueRepository;
 		this.listingRepository = listingRepository;
 		this.listingSnapshotRepository = listingSnapshotRepository;
 		this.listingQueryHitRepository = listingQueryHitRepository;
@@ -138,20 +143,93 @@ public class ListingIngestJob {
 		int stored = 0;
 		int skipped = 0;
 		Set<Long> seenListingIds = new HashSet<>();
-		log.info("ingest start crawl_run_id={}", crawlRunId);
+		DiscoveryMode mode = DiscoveryMode.forInstant(observedAt);
+		log.info("ingest start crawl_run_id={} mode={}", crawlRunId, mode);
 
-		int pages = Math.min(Math.max(properties.pagesPerQuery(), 1), 4);
-		for (IngestProperties.Query query : properties.queries()) {
+		switch (mode) {
+			case SHOP_EXPANSION -> {
+				int[] counts = runShopExpansion(crawlRunId, observedAt, seenListingIds);
+				stored += counts[0];
+				skipped += counts[1];
+			}
+			case BENCHMARK -> {
+				int[] counts = runBenchmarkQueries(crawlRunId, observedAt, seenListingIds);
+				stored += counts[0];
+				skipped += counts[1];
+			}
+			default -> {
+				int[] counts = runTaxonomySweep(mode, crawlRunId, observedAt, seenListingIds);
+				stored += counts[0];
+				skipped += counts[1];
+			}
+		}
+
+		refreshReviewsIfNeeded(observedAt);
+		bestsellerMarker.refresh(observedAt);
+		log.info("ingest done crawl_run_id={} mode={} stored={} skipped={}", crawlRunId, mode, stored, skipped);
+		ingestStatusStore.markOk(Instant.now(), stored, skipped);
+		return new IngestResult(crawlRunId, stored, skipped);
+	}
+
+	private int[] runTaxonomySweep(
+			DiscoveryMode mode, UUID crawlRunId, Instant observedAt, Set<Long> seenListingIds) {
+		int stored = 0;
+		int skipped = 0;
+		int pages = properties.effectivePagesPerSweep();
+		Long taxonomyId = properties.taxonomyId();
+		String source = mode.sourceKey();
+		int etsyCount = 0;
+		List<QueryStatsCalculator.Signals> querySignals = new ArrayList<>();
+		Set<Long> seenInSource = new HashSet<>();
+		int position = 0;
+		for (int pageIndex = 0; pageIndex < pages; pageIndex++) {
+			EtsySearchPage page = etsyClient.searchActive(
+					null,
+					taxonomyId,
+					properties.limit(),
+					pageIndex * properties.limit(),
+					mode.sortOn(),
+					mode.sortOrder());
+			etsyCount = Math.max(etsyCount, page.count());
+			if (page.results().isEmpty()) {
+				break;
+			}
+			for (EtsyListing listing : page.results()) {
+				position++;
+				boolean firstSighting = seenListingIds.add(listing.listingId());
+				if (upsertIfPrintTee(
+						listing, crawlRunId, observedAt, position, source, firstSighting, true)) {
+					stored += firstSighting ? 1 : 0;
+					if (seenInSource.add(listing.listingId())) {
+						querySignals.add(signalsOf(listing));
+					}
+				} else if (firstSighting) {
+					skipped++;
+				}
+			}
+		}
+		upsertQueryStats(source, observedAt, etsyCount, querySignals);
+		return new int[] {stored, skipped};
+	}
+
+	private int[] runBenchmarkQueries(UUID crawlRunId, Instant observedAt, Set<Long> seenListingIds) {
+		int stored = 0;
+		int skipped = 0;
+		int pages = properties.effectivePagesPerSweep();
+		for (IngestProperties.Query query : properties.benchmarkQueries()) {
 			int etsyCount = 0;
 			List<QueryStatsCalculator.Signals> querySignals = new ArrayList<>();
 			Set<Long> seenInQuery = new HashSet<>();
 			int position = 0;
+			String source = DiscoveryMode.benchmarkSource(query.keywords());
 			for (int pageIndex = 0; pageIndex < pages; pageIndex++) {
 				EtsySearchPage page = etsyClient.searchActive(
 						query.keywords(),
-						query.taxonomyId(),
+						query.taxonomyId() != null ? query.taxonomyId() : properties.taxonomyId(),
 						properties.limit(),
-						pageIndex * properties.limit());
+						pageIndex * properties.limit(),
+						"score",
+						"desc");
 				etsyCount = Math.max(etsyCount, page.count());
 				if (page.results().isEmpty()) {
 					break;
@@ -160,7 +238,7 @@ public class ListingIngestJob {
 					position++;
 					boolean firstSighting = seenListingIds.add(listing.listingId());
 					if (upsertIfPrintTee(
-							listing, crawlRunId, observedAt, position, query.keywords(), firstSighting, true)) {
+							listing, crawlRunId, observedAt, position, source, firstSighting, true)) {
 						stored += firstSighting ? 1 : 0;
 						if (seenInQuery.add(listing.listingId())) {
 							querySignals.add(signalsOf(listing));
@@ -172,7 +250,12 @@ public class ListingIngestJob {
 			}
 			if (properties.createdPage()) {
 				EtsySearchPage created = etsyClient.searchActive(
-						query.keywords(), query.taxonomyId(), properties.limit(), 0, "created", "desc");
+						query.keywords(),
+						query.taxonomyId() != null ? query.taxonomyId() : properties.taxonomyId(),
+						properties.limit(),
+						0,
+						"created",
+						"desc");
 				if (created != null && created.results() != null) {
 					etsyCount = Math.max(etsyCount, created.count());
 					int createdPosition = 0;
@@ -184,7 +267,7 @@ public class ListingIngestJob {
 								crawlRunId,
 								observedAt,
 								createdPosition,
-								query.keywords(),
+								source,
 								firstSighting,
 								false)) {
 							stored += firstSighting ? 1 : 0;
@@ -194,14 +277,49 @@ public class ListingIngestJob {
 					}
 				}
 			}
-			upsertQueryStats(query.keywords(), observedAt, etsyCount, querySignals);
+			upsertQueryStats(source, observedAt, etsyCount, querySignals);
 		}
+		return new int[] {stored, skipped};
+	}
 
-		refreshReviewsIfNoon(observedAt);
-		bestsellerMarker.refresh(observedAt);
-		log.info("ingest done crawl_run_id={} stored={} skipped={}", crawlRunId, stored, skipped);
-		ingestStatusStore.markOk(Instant.now(), stored, skipped);
-		return new IngestResult(crawlRunId, stored, skipped);
+	private int[] runShopExpansion(UUID crawlRunId, Instant observedAt, Set<Long> seenListingIds) {
+		int stored = 0;
+		int skipped = 0;
+		List<ShopCrawlQueue> pending =
+				shopCrawlQueueRepository.findPendingOrderByEnqueuedAtAsc().stream()
+						.limit(Math.max(properties.maxShopsPerRun(), 1))
+						.toList();
+		if (pending.isEmpty()) {
+			log.info("shop expansion: queue empty");
+			return new int[] {0, 0};
+		}
+		int maxPages = Math.min(Math.max(properties.maxPagesPerShop(), 1), 4);
+		for (ShopCrawlQueue entry : pending) {
+			long shopId = entry.getShopId();
+			String source = DiscoveryMode.shopSource(shopId);
+			int position = 0;
+			for (int pageIndex = 0; pageIndex < maxPages; pageIndex++) {
+				EtsySearchPage page = etsyClient.searchActiveByShop(
+						shopId, properties.limit(), pageIndex * properties.limit(), "created", "desc");
+				if (page.results().isEmpty()) {
+					break;
+				}
+				for (EtsyListing listing : page.results()) {
+					position++;
+					boolean firstSighting = seenListingIds.add(listing.listingId());
+					if (upsertIfPrintTee(
+							listing, crawlRunId, observedAt, position, source, firstSighting, true)) {
+						stored += firstSighting ? 1 : 0;
+					} else if (firstSighting) {
+						skipped++;
+					}
+				}
+			}
+			entry.setLastCrawledAt(observedAt);
+			entry.setStatus("done");
+			shopCrawlQueueRepository.save(entry);
+		}
+		return new int[] {stored, skipped};
 	}
 
 	private boolean upsertIfPrintTee(
@@ -209,11 +327,11 @@ public class ListingIngestJob {
 			UUID crawlRunId,
 			Instant observedAt,
 			int position,
-			String query,
+			String source,
 			boolean firstSighting,
 			boolean rankable) {
 		Boolean stored = transactionTemplate.execute(status -> persistPrintTee(
-				etsyListing, crawlRunId, observedAt, position, query, firstSighting, rankable));
+				etsyListing, crawlRunId, observedAt, position, source, firstSighting, rankable));
 		return Boolean.TRUE.equals(stored);
 	}
 
@@ -222,7 +340,7 @@ public class ListingIngestJob {
 			UUID crawlRunId,
 			Instant observedAt,
 			int position,
-			String query,
+			String source,
 			boolean firstSighting,
 			boolean rankable) {
 		if (etsyListing.listingId() == 0 || etsyListing.shopId() == null) {
@@ -243,6 +361,7 @@ public class ListingIngestJob {
 
 		Instant now = observedAt;
 		Shop shop = resolveShop(etsyListing, now);
+		enqueueShopIfNew(etsyListing.shopId(), now);
 		Listing listing = listingRepository
 				.findById(etsyListing.listingId())
 				.orElseGet(() -> new Listing(etsyListing.listingId(), shop, truncateTitle(title), listingUrl(etsyListing)));
@@ -286,8 +405,15 @@ public class ListingIngestJob {
 			applyWindowDeltas(listing, observedAt);
 			listingRepository.save(listing);
 		}
-		upsertQueryHit(listing, query, position, crawlRunId, observedAt);
+		upsertQueryHit(listing, source, position, crawlRunId, observedAt);
 		return true;
+	}
+
+	private void enqueueShopIfNew(long shopId, Instant now) {
+		if (shopCrawlQueueRepository.existsById(shopId)) {
+			return;
+		}
+		shopCrawlQueueRepository.save(new ShopCrawlQueue(shopId, now));
 	}
 
 	private void maybeSnapshot(Listing listing, UUID crawlRunId, Instant observedAt, int position) {
@@ -308,15 +434,15 @@ public class ListingIngestJob {
 		listingSnapshotRepository.saveAndFlush(snapshot);
 	}
 
-	private void upsertQueryHit(Listing listing, String query, int position, UUID crawlRunId, Instant observedAt) {
-		if (query == null || query.isBlank()) {
+	private void upsertQueryHit(Listing listing, String source, int position, UUID crawlRunId, Instant observedAt) {
+		if (source == null || source.isBlank()) {
 			return;
 		}
 		LocalDate day = observedAt.atZone(ISTANBUL).toLocalDate();
-		ListingQueryHitId id = new ListingQueryHitId(listing.getListingId(), query, day);
+		ListingQueryHitId id = new ListingQueryHitId(listing.getListingId(), source, day);
 		ListingQueryHit hit = listingQueryHitRepository
 				.findById(id)
-				.orElseGet(() -> new ListingQueryHit(listing, query, day, position, crawlRunId.toString(), observedAt));
+				.orElseGet(() -> new ListingQueryHit(listing, source, day, position, crawlRunId.toString(), observedAt));
 		hit.setPosition(position);
 		hit.setCrawlRunId(crawlRunId.toString());
 		hit.setObservedAt(observedAt);
@@ -439,21 +565,26 @@ public class ListingIngestJob {
 	}
 
 	private void upsertQueryStats(
-			String query, Instant observedAt, int etsyCount, List<QueryStatsCalculator.Signals> signals) {
-		if (query == null || query.isBlank()) {
+			String source, Instant observedAt, int etsyCount, List<QueryStatsCalculator.Signals> signals) {
+		if (source == null || source.isBlank()) {
 			return;
 		}
 		LocalDate day = observedAt.atZone(ISTANBUL).toLocalDate();
 		QueryStatsCalculator.Row row = queryStatsCalculator.summarize(etsyCount, signals);
 		QueryStats stats = queryStatsRepository
-				.findById(new QueryStatsId(query, day))
-				.orElseGet(() -> new QueryStats(query, day));
+				.findById(new QueryStatsId(source, day))
+				.orElseGet(() -> new QueryStats(source, day));
 		stats.apply(row);
 		queryStatsRepository.save(stats);
 	}
 
-	private void refreshReviewsIfNoon(Instant observedAt) {
-		if (observedAt.atZone(ISTANBUL).getHour() != 12) {
+	private void refreshReviewsIfNeeded(Instant observedAt) {
+		if (properties.reviewLimit() <= 0) {
+			return;
+		}
+		boolean scheduledRun = DiscoveryMode.isReviewRun(observedAt);
+		boolean bootstrap = listingRepository.countWithReviews30d() == 0;
+		if (!scheduledRun && !bootstrap) {
 			return;
 		}
 		List<Listing> top = listingRepository.findByPrintTeeTrueOrderByLastScoreDesc(
