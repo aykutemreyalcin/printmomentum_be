@@ -114,6 +114,20 @@ public class ListingFeedService {
 	}
 
 	@Transactional(readOnly = true)
+	public TopChartResponse topChart(int limit, int snapshotLimit) {
+		int cappedLimit = Math.min(Math.max(limit, 1), 50);
+		int cappedSnapshots = Math.min(Math.max(snapshotLimit, 1), 200);
+		List<Listing> top = listingRepository
+				.findAll(ListingSpecifications.printTeeFeed(null, null, null, null, null, Instant.now()), scoreSort())
+				.stream()
+				.limit(cappedLimit)
+				.toList();
+		List<TopChartItem> items =
+				top.stream().map(listing -> toTopChartItem(listing, cappedSnapshots)).toList();
+		return new TopChartResponse(cappedLimit, cappedSnapshots, items);
+	}
+
+	@Transactional(readOnly = true)
 	public ListingPageResponse favorites(int page, int size) {
 		User user = currentUserHolder.getCurrentUser();
 		if (user == null) {
@@ -273,6 +287,22 @@ public class ListingFeedService {
 			return Set.of();
 		}
 		return new HashSet<>(userFavoriteRepository.findListingIdsByUserId(user.getId()));
+	}
+
+	private TopChartItem toTopChartItem(Listing listing, int snapshotLimit) {
+		List<ListingSnapshot> snapshots = new ArrayList<>(listingSnapshotRepository.findByListingListingIdOrderByObservedAtDescIdDesc(
+				listing.getListingId(), PageRequest.of(0, snapshotLimit)));
+		Collections.reverse(snapshots);
+		return new TopChartItem(
+				listing.getListingId(),
+				listing.getTitle(),
+				imageUrl(listing),
+				listing.getUrl(),
+				listing.getLastScore(),
+				listingRanker.daysToTop(listing.getEtsyCreatedAt(), listing.getFirstSeenInTopAt()),
+				listing.getNumFavorers(),
+				listing.getViews(),
+				snapshots.stream().map(ListingFeedService::toSnapshotItem).toList());
 	}
 
 	private ListingFeedItem toItem(Listing listing, boolean favorite, List<QueryHitItem> queryHits) {
