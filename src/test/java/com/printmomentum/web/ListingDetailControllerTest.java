@@ -135,6 +135,7 @@ class ListingDetailControllerTest {
 		listing.setCurrency("USD");
 		listing.setNumFavorers(31);
 		listing.setLastScore(new BigDecimal("0.750000000"));
+		listing.setLastScoreWeekly(new BigDecimal("0.750000000"));
 		listing.setReviews30d(4);
 		listing.setEtsyBestseller(true);
 		listing.setEtsyBestsellerSince(Instant.parse("2026-08-12T00:00:00Z"));
