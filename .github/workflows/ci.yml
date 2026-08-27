@@ -5,6 +5,16 @@ on:
   push:
     branches: [main, dev]
 
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  AWS_S3_BUCKET: printmomentum-prod-use1-053285355718
+  EC2_INSTANCE_ID: i-0a6c1950651c0bc11
+  GITHUB_DEPLOY_ROLE_ARN: arn:aws:iam::053285355718:role/PrintMomentum-GithubDeploy
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,3 +29,73 @@ jobs:
         run: ./mvnw -B test
       - name: Package
         run: ./mvnw -B -DskipTests package
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Package
+        run: ./mvnw -B -DskipTests package
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.GITHUB_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Upload API jar to S3
+        run: |
+          aws s3 cp target/printmomentum-be-0.0.1-SNAPSHOT.jar \
+            "s3://${AWS_S3_BUCKET}/host/app.jar"
+      - name: Restart API on EC2
+        run: |
+          set -euo pipefail
+          PARAMS=$(mktemp)
+          python3 <<'PY' > "$PARAMS"
+          import json
+          bucket = "${{ env.AWS_S3_BUCKET }}"
+          print(json.dumps({"commands": [
+            "set -euo pipefail",
+            f"install -d -m 755 /opt/printmomentum/api",
+            f"aws s3 cp s3://{bucket}/host/app.jar /opt/printmomentum/api/app.jar",
+            "cd /opt/printmomentum && docker compose --env-file .env up -d --force-recreate --no-deps api",
+            "sleep 20",
+            "curl -sf http://127.0.0.1:8080/api/v1/health",
+          ]}))
+          PY
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+            --document-name AWS-RunShellScript \
+            --parameters "file://$PARAMS" \
+            --query Command.CommandId --output text)
+          rm -f "$PARAMS"
+          for _ in $(seq 1 36); do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$CMD_ID" \
+              --instance-id "${{ env.EC2_INSTANCE_ID }}" \
+              --query Status --output text)
+            if [ "$STATUS" = "Success" ]; then
+              aws ssm get-command-invocation \
+                --command-id "$CMD_ID" \
+                --instance-id "${{ env.EC2_INSTANCE_ID }}" \
+                --query StandardOutputContent --output text
+              exit 0
+            fi
+            if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ]; then
+              aws ssm get-command-invocation \
+                --command-id "$CMD_ID" \
+                --instance-id "${{ env.EC2_INSTANCE_ID }}" \
+                --output json
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "SSM command timed out waiting for completion"
+          exit 1
+      - name: Verify public health
+        run: curl -sf "https://app.printmomentum.com/api/v1/health"
