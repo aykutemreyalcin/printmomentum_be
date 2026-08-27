@@ -25,6 +25,7 @@ import com.printmomentum.domain.SnapshotDeltas;
 import com.printmomentum.storage.ListingImageCache;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,6 +38,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -76,6 +78,7 @@ public class ListingIngestJob {
 	private final IngestStatusStore ingestStatusStore;
 	private final TransactionTemplate transactionTemplate;
 	private final ObjectMapper objectMapper;
+	private final Clock clock;
 
 	public ListingIngestJob(
 			EtsyClient etsyClient,
@@ -96,7 +99,8 @@ public class ListingIngestJob {
 			BestsellerMarker bestsellerMarker,
 			IngestStatusStore ingestStatusStore,
 			PlatformTransactionManager transactionManager,
-			ObjectMapper objectMapper) {
+			ObjectMapper objectMapper,
+			@Autowired(required = false) Clock clock) {
 		this.etsyClient = etsyClient;
 		this.classifier = classifier;
 		this.properties = properties;
@@ -116,6 +120,7 @@ public class ListingIngestJob {
 		this.ingestStatusStore = ingestStatusStore;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
 		this.objectMapper = objectMapper;
+		this.clock = clock != null ? clock : Clock.systemUTC();
 	}
 
 	@Scheduled(cron = "${printmomentum.ingest.cron:-}", zone = "Europe/Istanbul")
@@ -124,7 +129,7 @@ public class ListingIngestJob {
 	}
 
 	public IngestResult run() {
-		Instant startedAt = Instant.now();
+		Instant startedAt = clock.instant();
 		ingestStatusStore.markStarted(startedAt);
 		try {
 			return runInternal(startedAt);
@@ -342,7 +347,7 @@ public class ListingIngestJob {
 					position++;
 					boolean firstSighting = seenListingIds.add(listing.listingId());
 					PersistResult result = upsertIfPrintTee(
-							listing, crawlRunId, observedAt, position, source, firstSighting, true);
+							listing, crawlRunId, observedAt, position, source, firstSighting, false);
 					if (result != null && result.accepted()) {
 						matchedPrintTees++;
 						if (result.newToIndex()) {

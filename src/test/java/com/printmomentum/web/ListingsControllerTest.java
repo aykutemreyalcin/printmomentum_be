@@ -104,6 +104,8 @@ class ListingsControllerTest {
 
 	@Test
 	void topChartReturnsMomentumOrderWithSnapshots() throws Exception {
+		listingRepository.deleteAll();
+		shopRepository.deleteAll();
 		seedPrintTee(9131L, "BE009 chart high", "0.900000000", "Shop High");
 		seedPrintTee(9132L, "BE009 chart low", "0.100000000", "Shop Low");
 
