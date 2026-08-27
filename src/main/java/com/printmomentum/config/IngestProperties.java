@@ -20,6 +20,7 @@ public record IngestProperties(
 		@DefaultValue("30") int maxShopsPerRun,
 		@DefaultValue("4") int maxPagesPerShop,
 		@DefaultValue("5") int pmBestsellerMinFavorersDelta7d,
+		@DefaultValue("25") int staleRefreshLimit,
 		List<Query> benchmarkQueries,
 		List<Query> queries) {
 

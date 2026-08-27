@@ -15,6 +15,9 @@ public class IngestStatusStore {
 
 	private volatile Instant lastAttemptAt;
 	private volatile Instant lastFinishedAt;
+	private volatile Integer lastMatchedPrintTees;
+	private volatile Integer lastRejectedNonPrintTees;
+	private volatile Integer lastNewListings;
 	private volatile Integer lastStored;
 	private volatile Integer lastSkipped;
 	private volatile String lastError;
@@ -24,10 +27,13 @@ public class IngestStatusStore {
 		this.lastAttemptAt = at;
 	}
 
-	public void markOk(Instant at, int stored, int skipped) {
+	public void markOk(Instant at, int matchedPrintTees, int rejectedNonPrintTees, int newListings) {
 		this.lastFinishedAt = at;
-		this.lastStored = stored;
-		this.lastSkipped = skipped;
+		this.lastMatchedPrintTees = matchedPrintTees;
+		this.lastRejectedNonPrintTees = rejectedNonPrintTees;
+		this.lastNewListings = newListings;
+		this.lastStored = matchedPrintTees;
+		this.lastSkipped = rejectedNonPrintTees;
 		this.lastError = null;
 		this.lastOutcome = Outcome.ok;
 	}
@@ -50,6 +56,18 @@ public class IngestStatusStore {
 
 	public Instant lastFinishedAt() {
 		return lastFinishedAt;
+	}
+
+	public Integer lastMatchedPrintTees() {
+		return lastMatchedPrintTees;
+	}
+
+	public Integer lastRejectedNonPrintTees() {
+		return lastRejectedNonPrintTees;
+	}
+
+	public Integer lastNewListings() {
+		return lastNewListings;
 	}
 
 	public Integer lastStored() {

@@ -1,7 +1,7 @@
 {
   "documentedPrecision": 1.0,
   "includeCount": 8,
-  "excludeCount": 7,
+  "excludeCount": 8,
   "threshold": 0.7,
   "cases": [
     {
@@ -123,6 +123,14 @@
       "description": "Printed ceramic mug, not apparel",
       "tags": ["mug", "graphic", "print"],
       "taxonomyId": null
+    },
+    {
+      "id": "exclude-printable-practice-bundle",
+      "expectPrintTee": false,
+      "title": "30-Day Sketching Practice Bundle, Printable Practice Books",
+      "description": "Drawing ebook and printable cards for beginners",
+      "tags": ["drawing ebook", "printable practice", "learn to draw"],
+      "taxonomyId": 1603
     }
   ]
 }

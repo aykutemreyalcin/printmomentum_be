@@ -24,7 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestPropertySource(properties = {
 		"printmomentum.ingest.pages-per-sweep=1",
-		"printmomentum.ingest.created-page=false"
+		"printmomentum.ingest.created-page=false",
+		"printmomentum.ingest.stale-refresh-limit=0"
 })
 class ListingIngestJobTest {
 

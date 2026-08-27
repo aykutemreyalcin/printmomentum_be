@@ -2,6 +2,7 @@ package com.printmomentum.domain;
 
 import java.time.Instant;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -19,7 +20,9 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
 
 	List<Listing> findByPrintTeeTrueAndPmBestsellerTrue();
 
-	List<Listing> findByPrintTeeTrueOrderByLastScoreDesc(org.springframework.data.domain.Pageable pageable);
+	List<Listing> findByPrintTeeTrueOrderByLastScoreDesc(Pageable pageable);
+
+	List<Listing> findByPrintTeeTrueOrderByLastSeenAtAsc(Pageable pageable);
 
 	@Query("select count(l) from Listing l where l.printTee = true and l.reviews30d is not null")
 	long countWithReviews30d();
