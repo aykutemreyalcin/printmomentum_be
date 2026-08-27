@@ -22,6 +22,7 @@ import com.printmomentum.domain.ShopCrawlQueue;
 import com.printmomentum.domain.ShopCrawlQueueRepository;
 import com.printmomentum.domain.ShopRepository;
 import com.printmomentum.domain.SnapshotDeltas;
+import com.printmomentum.domain.SnapshotTrendSignals;
 import com.printmomentum.storage.ListingImageCache;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -69,6 +70,7 @@ public class ListingIngestJob {
 	private final ListingQueryHitRepository listingQueryHitRepository;
 	private final ListingRanker listingRanker;
 	private final SnapshotDeltas snapshotDeltas;
+	private final SnapshotTrendSignals snapshotTrendSignals = new SnapshotTrendSignals();
 	private final QueryStatsCalculator queryStatsCalculator;
 	private final QueryStatsRepository queryStatsRepository;
 	private final ReviewWindow reviewWindow;
@@ -467,14 +469,8 @@ public class ListingIngestJob {
 		addImagesIfMissing(listing, imagesFor(etsyListing, listing));
 		listingRepository.save(listing);
 		maybeSnapshot(listing, crawlRunId, observedAt, position);
-		if (rankable && position > 0) {
-			int favorersDelta = favorersDelta(listing.getListingId());
-			double momentum = listingRanker.score(
-					listing.getEtsyCreatedAt(), listing.getFirstSeenInTopAt(), observedAt, favorersDelta);
-			listing.setLastScore(BigDecimal.valueOf(momentum).setScale(9, RoundingMode.HALF_UP));
-			listing.setLastScoredAt(observedAt);
-		}
 		applyWindowDeltas(listing, observedAt);
+		applyMomentumScores(listing, observedAt, rankable, position);
 		listingRepository.save(listing);
 		if (source != null && !source.isBlank() && !source.startsWith("refresh:")) {
 			upsertQueryHit(listing, source, position, crawlRunId, observedAt);
@@ -641,6 +637,28 @@ public class ListingIngestJob {
 		listing.setDeltaViews7d(delta.views());
 	}
 
+	private void applyMomentumScores(Listing listing, Instant observedAt, boolean rankable, int position) {
+		if (rankable && position > 0) {
+			int favorersDelta = favorersDelta(listing.getListingId());
+			double daily = listingRanker.scoreDaily(
+					listing.getEtsyCreatedAt(), listing.getFirstSeenInTopAt(), observedAt, favorersDelta);
+			listing.setLastScore(BigDecimal.valueOf(daily).setScale(9, RoundingMode.HALF_UP));
+		}
+		List<ListingSnapshot> history =
+				listingSnapshotRepository.findByListingListingIdOrderByObservedAtAscIdAsc(listing.getListingId());
+		List<SnapshotTrendSignals.TrendPoint> trendPoints = history.stream()
+				.map(row -> new SnapshotTrendSignals.TrendPoint(
+						row.getObservedAt(), row.getNumFavorers(), row.getViews(), row.getPosition()))
+				.toList();
+		double weekly = listingRanker.scoreTrend(
+				snapshotTrendSignals.trendInput(trendPoints, observedAt, Duration.ofDays(7)));
+		double monthly = listingRanker.scoreTrend(
+				snapshotTrendSignals.trendInput(trendPoints, observedAt, Duration.ofDays(30)));
+		listing.setLastScoreWeekly(BigDecimal.valueOf(weekly).setScale(9, RoundingMode.HALF_UP));
+		listing.setLastScoreMonthly(BigDecimal.valueOf(monthly).setScale(9, RoundingMode.HALF_UP));
+		listing.setLastScoredAt(observedAt);
+	}
+
 	private void upsertQueryStats(
 			String source, Instant observedAt, int etsyCount, List<QueryStatsCalculator.Signals> signals) {
 		if (source == null || source.isBlank()) {
@@ -664,7 +682,7 @@ public class ListingIngestJob {
 		if (!scheduledRun && !bootstrap) {
 			return;
 		}
-		List<Listing> top = listingRepository.findByPrintTeeTrueOrderByLastScoreDesc(
+		List<Listing> top = listingRepository.findByPrintTeeTrueOrderByLastScoreWeeklyDesc(
 				org.springframework.data.domain.PageRequest.of(0, Math.max(properties.reviewLimit(), 1)));
 		for (Listing listing : top) {
 			try {

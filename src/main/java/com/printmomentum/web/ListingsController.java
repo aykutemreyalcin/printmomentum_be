@@ -30,14 +30,15 @@ public class ListingsController {
 	@GetMapping("/listings/top-chart")
 	public TopChartResponse topChart(
 			@RequestParam(defaultValue = "30") int limit,
-			@RequestParam(defaultValue = "90") int snapshotLimit) {
+			@RequestParam(defaultValue = "90") int snapshotLimit,
+			@RequestParam(required = false) String momentumPeriod) {
 		if (limit < 1 || limit > 50) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be 1..50");
 		}
 		if (snapshotLimit < 1 || snapshotLimit > 200) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "snapshotLimit must be 1..200");
 		}
-		return listingFeedService.topChart(limit, snapshotLimit);
+		return listingFeedService.topChart(limit, snapshotLimit, parseMomentumPeriod(momentumPeriod));
 	}
 
 	@GetMapping("/listings")
@@ -49,11 +50,21 @@ public class ListingsController {
 			@RequestParam(required = false) String q,
 			@RequestParam(required = false) Long shopId,
 			@RequestParam(required = false) String preset,
-			@RequestParam(required = false) Boolean bestseller) {
+			@RequestParam(required = false) Boolean bestseller,
+			@RequestParam(required = false) String momentumPeriod) {
 		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..200");
 		}
-		return listingFeedService.list(page, size, maxDaysToTop, minScore, q, shopId, preset, bestseller);
+		return listingFeedService.list(
+				page, size, maxDaysToTop, minScore, q, shopId, preset, bestseller, parseMomentumPeriod(momentumPeriod));
+	}
+
+	private static com.printmomentum.domain.MomentumPeriod parseMomentumPeriod(String value) {
+		try {
+			return com.printmomentum.domain.MomentumPeriod.parse(value);
+		} catch (IllegalArgumentException exception) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
+		}
 	}
 
 	@GetMapping("/favorites")
