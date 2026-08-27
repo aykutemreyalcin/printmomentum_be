@@ -35,6 +35,9 @@ public class HealthController {
 				ingestStatusStore.lastAttemptAt(),
 				CrawlSchedule.nextCrawlAt(Instant.now()),
 				ingestStatusStore.lastOutcome().name(),
+				ingestStatusStore.lastMatchedPrintTees(),
+				ingestStatusStore.lastRejectedNonPrintTees(),
+				ingestStatusStore.lastNewListings(),
 				ingestStatusStore.lastStored(),
 				ingestStatusStore.lastSkipped(),
 				ingestStatusStore.lastError());
@@ -48,6 +51,9 @@ public class HealthController {
 			Instant lastAttemptAt,
 			Instant nextCrawlAt,
 			String lastOutcome,
+			Integer lastMatchedPrintTees,
+			Integer lastRejectedNonPrintTees,
+			Integer lastNewListings,
 			Integer lastStored,
 			Integer lastSkipped,
 			String lastError) {

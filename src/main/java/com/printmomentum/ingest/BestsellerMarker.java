@@ -35,7 +35,7 @@ public class BestsellerMarker {
 			IngestProperties ingestProperties,
 			ListingEstimator listingEstimator,
 			EtsyBestsellerSearch bestsellerSearch,
-			ListingRepository listingRepository,
+		 ListingRepository listingRepository,
 		 ListingEventRepository listingEventRepository) {
 		this.properties = properties;
 		this.ingestProperties = ingestProperties;
@@ -48,28 +48,32 @@ public class BestsellerMarker {
 	@Transactional
 	public void refresh(Instant observedAt) {
 		if (properties.siteSearchEnabled()) {
-			refreshFromSiteSearch(observedAt);
-			clearPmFlags(observedAt);
-			return;
+			Optional<Set<Long>> siteSearchIds = findEtsyBestsellerIds();
+			if (siteSearchIds.isPresent() && !siteSearchIds.get().isEmpty()) {
+				applyEtsySet(siteSearchIds.get(), observedAt);
+				clearPmFlags(observedAt);
+				return;
+			}
+			log.warn("bestseller site search unavailable or empty; using PM fallback");
 		}
 		refreshPmFallback(observedAt);
 	}
 
-	private void refreshFromSiteSearch(Instant observedAt) {
+	private Optional<Set<Long>> findEtsyBestsellerIds() {
 		Set<Long> found = new HashSet<>();
 		for (IngestProperties.Query query : ingestProperties.benchmarkQueries()) {
 			Optional<Set<Long>> pageIds = bestsellerSearch.listingIds(query.keywords());
 			if (pageIds.isEmpty()) {
-				log.warn("bestseller site search failed; leaving etsy_bestseller unchanged");
-				return;
+				log.warn("bestseller site search failed for keywords={}", query.keywords());
+				return Optional.empty();
 			}
 			found.addAll(pageIds.get());
 		}
 		if (found.isEmpty()) {
-			log.warn("bestseller site search parsed no listing ids; leaving etsy_bestseller unchanged");
-			return;
+			log.warn("bestseller site search parsed no listing ids");
+			return Optional.of(Set.of());
 		}
-		applyEtsySet(found, observedAt);
+		return Optional.of(Set.copyOf(found));
 	}
 
 	private void applyEtsySet(Set<Long> found, Instant observedAt) {

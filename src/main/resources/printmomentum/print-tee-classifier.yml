@@ -40,7 +40,6 @@ includeKeywords:
     - mockup
     - mock-up
     - mock up
-    - printable
   custom:
     - custom
     - personalized
@@ -90,3 +89,14 @@ excludeKeywords:
     - tote
     - candle
     - phone case
+  digitalDownload:
+    - digital download
+    - instant download
+    - printable pdf
+    - pdf download
+    - printable practice
+    - practice bundle
+    - drawing ebook
+    - printable book
+    - print at home
+    - downloadable
