@@ -27,6 +27,19 @@ public class ListingsController {
 		this.favoriteService = favoriteService;
 	}
 
+	@GetMapping("/listings/top-chart")
+	public TopChartResponse topChart(
+			@RequestParam(defaultValue = "30") int limit,
+			@RequestParam(defaultValue = "90") int snapshotLimit) {
+		if (limit < 1 || limit > 50) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be 1..50");
+		}
+		if (snapshotLimit < 1 || snapshotLimit > 200) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "snapshotLimit must be 1..200");
+		}
+		return listingFeedService.topChart(limit, snapshotLimit);
+	}
+
 	@GetMapping("/listings")
 	public ListingPageResponse list(
 			@RequestParam(defaultValue = "0") int page,

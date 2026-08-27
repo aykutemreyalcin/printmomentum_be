@@ -102,6 +102,27 @@ class ListingsControllerTest {
 				.andExpect(jsonPath("$.items[0].etsyBestseller").value(true));
 	}
 
+	@Test
+	void topChartReturnsMomentumOrderWithSnapshots() throws Exception {
+		seedPrintTee(9131L, "BE009 chart high", "0.900000000", "Shop High");
+		seedPrintTee(9132L, "BE009 chart low", "0.100000000", "Shop Low");
+
+		mockMvc.perform(get("/api/v1/listings/top-chart").param("limit", "2").param("snapshotLimit", "5"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.limit").value(2))
+				.andExpect(jsonPath("$.items.length()").value(2))
+				.andExpect(jsonPath("$.items[0].listingId").value(9131))
+				.andExpect(jsonPath("$.items[0].momentumScore").value(0.9))
+				.andExpect(jsonPath("$.items[0].snapshots").isArray())
+				.andExpect(jsonPath("$.items[1].listingId").value(9132));
+	}
+
+	@Test
+	void topChartLimitOverCapIsBadRequest() throws Exception {
+		mockMvc.perform(get("/api/v1/listings/top-chart").param("limit", "99"))
+				.andExpect(status().isBadRequest());
+	}
+
 	private void seedPrintTee(long listingId, String title, String lastScore, String shopName) {
 		Shop shop = shopRepository.save(new Shop(listingId, shopName, "https://www.etsy.com/shop/" + listingId));
 		Listing listing = new Listing(listingId, shop, title, "https://www.etsy.com/listing/" + listingId);
