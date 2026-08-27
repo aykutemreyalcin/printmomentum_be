@@ -8,7 +8,9 @@ import com.printmomentum.domain.ListingEvent;
 import com.printmomentum.domain.ListingEventRepository;
 import com.printmomentum.domain.ListingRepository;
 import java.time.Instant;
-import java.util.HashSet;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -21,12 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class BestsellerMarker {
 
 	private static final Logger log = LoggerFactory.getLogger(BestsellerMarker.class);
+	private static final ZoneId ISTANBUL = ZoneId.of("Europe/Istanbul");
 	private static final double PM_MIN_EST_SALES_30D = 25.0;
+	private static final int ROTATION_SLOTS = 6;
 
 	private final BestsellerProperties properties;
 	private final IngestProperties ingestProperties;
 	private final ListingEstimator listingEstimator;
-	private final EtsyBestsellerSearch bestsellerSearch;
+	private final EtsyPublicListingClient publicListingClient;
 	private final ListingRepository listingRepository;
 	private final ListingEventRepository listingEventRepository;
 
@@ -34,70 +38,99 @@ public class BestsellerMarker {
 			BestsellerProperties properties,
 			IngestProperties ingestProperties,
 			ListingEstimator listingEstimator,
-			EtsyBestsellerSearch bestsellerSearch,
-		 ListingRepository listingRepository,
+			EtsyPublicListingClient publicListingClient,
+			ListingRepository listingRepository,
 		 ListingEventRepository listingEventRepository) {
 		this.properties = properties;
 		this.ingestProperties = ingestProperties;
 		this.listingEstimator = listingEstimator;
-		this.bestsellerSearch = bestsellerSearch;
+		this.publicListingClient = publicListingClient;
 		this.listingRepository = listingRepository;
 		this.listingEventRepository = listingEventRepository;
 	}
 
 	@Transactional
 	public void refresh(Instant observedAt) {
+		refresh(observedAt, Set.of());
+	}
+
+	@Transactional
+	public void refresh(Instant observedAt, Set<Long> touchedListingIds) {
 		if (properties.siteSearchEnabled()) {
-			Optional<Set<Long>> siteSearchIds = findEtsyBestsellerIds();
-			if (siteSearchIds.isPresent() && !siteSearchIds.get().isEmpty()) {
-				applyEtsySet(siteSearchIds.get(), observedAt);
+			VerificationRun run = verifyViaPublicApi(touchedListingIds, observedAt);
+			if (run.reliable()) {
 				clearPmFlags(observedAt);
+				log.info(
+						"bestseller etsy verified checked={} confirmed={} cleared={}",
+						run.checked(),
+						run.confirmed(),
+						run.cleared());
 				return;
 			}
-			log.warn("bestseller site search unavailable or empty; using PM fallback");
+			log.warn("bestseller etsy verification unreliable (checked={}); using PM fallback", run.checked());
 		}
 		refreshPmFallback(observedAt);
 	}
 
-	private Optional<Set<Long>> findEtsyBestsellerIds() {
-		Set<Long> found = new HashSet<>();
-		for (IngestProperties.Query query : ingestProperties.benchmarkQueries()) {
-			Optional<Set<Long>> pageIds = bestsellerSearch.listingIds(query.keywords());
-			if (pageIds.isEmpty()) {
-				log.warn("bestseller site search failed for keywords={}", query.keywords());
-				return Optional.empty();
+	private VerificationRun verifyViaPublicApi(Set<Long> touchedListingIds, Instant observedAt) {
+		Set<Long> targets = verificationTargets(touchedListingIds, observedAt);
+		int confirmed = 0;
+		int cleared = 0;
+		int checked = 0;
+		int failures = 0;
+		for (Long listingId : targets) {
+			Optional<Boolean> bestseller = publicListingClient.isBestseller(listingId);
+			if (bestseller.isEmpty()) {
+				failures++;
+				continue;
 			}
-			found.addAll(pageIds.get());
-		}
-		if (found.isEmpty()) {
-			log.warn("bestseller site search parsed no listing ids");
-			return Optional.of(Set.of());
-		}
-		return Optional.of(Set.copyOf(found));
-	}
-
-	private void applyEtsySet(Set<Long> found, Instant observedAt) {
-		List<Listing> current = listingRepository.findByPrintTeeTrueAndEtsyBestsellerTrue();
-		for (Listing listing : current) {
-			if (!found.contains(listing.getListingId())) {
+			checked++;
+			Listing listing = listingRepository.findById(listingId).orElse(null);
+			if (listing == null || !listing.isPrintTee()) {
+				continue;
+			}
+			if (bestseller.get()) {
+				if (!listing.isEtsyBestseller()) {
+					listing.setEtsyBestseller(true);
+					if (listing.getEtsyBestsellerSince() == null) {
+						listing.setEtsyBestsellerSince(observedAt);
+					}
+					listing.setEtsyBestsellerEndedAt(null);
+					listingEventRepository.save(new ListingEvent(listing, ListingEvent.ETSY_BESTSELLER_ON, observedAt));
+				}
+				confirmed++;
+			} else if (listing.isEtsyBestseller()) {
 				listing.setEtsyBestseller(false);
 				listing.setEtsyBestsellerEndedAt(observedAt);
 				listingEventRepository.save(new ListingEvent(listing, ListingEvent.ETSY_BESTSELLER_OFF, observedAt));
+				cleared++;
 			}
 		}
-		for (Listing listing : listingRepository.findAllById(found)) {
-			if (!listing.isPrintTee()) {
-				continue;
-			}
-			if (!listing.isEtsyBestseller()) {
-				listing.setEtsyBestseller(true);
-				if (listing.getEtsyBestsellerSince() == null) {
-					listing.setEtsyBestsellerSince(observedAt);
-				}
-				listing.setEtsyBestsellerEndedAt(null);
-				listingEventRepository.save(new ListingEvent(listing, ListingEvent.ETSY_BESTSELLER_ON, observedAt));
+		boolean reliable = checked > 0 && failures < Math.max(1, checked / 2);
+		return new VerificationRun(checked, confirmed, cleared, reliable);
+	}
+
+	private Set<Long> verificationTargets(Set<Long> touchedListingIds, Instant observedAt) {
+		LinkedHashSet<Long> ordered = new LinkedHashSet<>();
+		for (Listing listing : listingRepository.findByPrintTeeTrueAndEtsyBestsellerTrue()) {
+			ordered.add(listing.getListingId());
+		}
+		if (touchedListingIds != null) {
+			for (Long listingId : touchedListingIds) {
+				ordered.add(listingId);
 			}
 		}
+		int slot = (observedAt.atZone(ISTANBUL).getHour() / 4) % ROTATION_SLOTS;
+		for (Listing listing : listingRepository.findByPrintTeeTrue()) {
+			if (listing.getListingId() % ROTATION_SLOTS == slot) {
+				ordered.add(listing.getListingId());
+			}
+		}
+		int cap = Math.max(properties.maxChecksPerRun(), 1);
+		if (ordered.size() <= cap) {
+			return Set.copyOf(ordered);
+		}
+		return Set.copyOf(new ArrayList<>(ordered).subList(0, cap));
 	}
 
 	private void refreshPmFallback(Instant observedAt) {
@@ -138,5 +171,8 @@ public class BestsellerMarker {
 			listing.setPmBestsellerEndedAt(observedAt);
 			listingEventRepository.save(new ListingEvent(listing, ListingEvent.PM_BESTSELLER_OFF, observedAt));
 		}
+	}
+
+	private record VerificationRun(int checked, int confirmed, int cleared, boolean reliable) {
 	}
 }

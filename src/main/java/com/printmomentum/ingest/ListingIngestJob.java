@@ -184,7 +184,7 @@ public class ListingIngestJob {
 
 		int staleRefreshed = refreshStaleListings(crawlRunId, observedAt, seenListingIds);
 		refreshReviewsIfNeeded(observedAt);
-		bestsellerMarker.refresh(observedAt);
+		bestsellerMarker.refresh(observedAt, seenListingIds);
 		log.info(
 				"ingest done crawl_run_id={} mode={} matched={} rejected={} new={} staleRefreshed={}",
 				crawlRunId,
