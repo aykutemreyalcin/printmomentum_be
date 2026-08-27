@@ -50,16 +50,17 @@ class ListingIngestJobTest {
 	@Test
 	void upsertsPrintTeesSkipsExcludedAndDoesNotDuplicate() {
 		when(etsyClient.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString()))
-				.thenReturn(new EtsySearchPage(3, List.of(printTee(5001L), printTee(5002L), excludedHoodie(5003L))));
+				.thenReturn(new EtsySearchPage(4, List.of(printTee(5001L), printTee(5002L), excludedHoodie(5003L), excludedCardigan(5004L))));
 
 		IngestResult first = ingestJob.run();
 		assertThat(storedIds()).containsExactlyInAnyOrder(5001L, 5002L);
 		assertThat(listingRepository.findById(5003L)).isEmpty();
+		assertThat(listingRepository.findById(5004L)).isEmpty();
 		assertThat(listingRepository.findAll().stream().filter(listing -> Set.of(5001L, 5002L).contains(listing.getListingId())))
 				.allMatch(Listing::isPrintTee);
 		assertThat(first.crawlRunId()).isNotNull();
 		assertThat(first.stored()).isEqualTo(2);
-		assertThat(first.skipped()).isEqualTo(1);
+		assertThat(first.skipped()).isEqualTo(2);
 
 		listingRepository.findById(5001L).orElseThrow().setNumFavorers(99);
 
@@ -68,7 +69,7 @@ class ListingIngestJobTest {
 		assertThat(listingRepository.findById(5001L).orElseThrow().getNumFavorers()).isEqualTo(12);
 		assertThat(second.crawlRunId()).isNotEqualTo(first.crawlRunId());
 		assertThat(second.stored()).isEqualTo(2);
-		assertThat(second.skipped()).isEqualTo(1);
+		assertThat(second.skipped()).isEqualTo(2);
 
 		verify(etsyClient, atLeastOnce())
 				.searchActive(nullable(String.class), nullable(Long.class), anyInt(), anyInt(), anyString(), anyString());
@@ -77,7 +78,7 @@ class ListingIngestJobTest {
 	private List<Long> storedIds() {
 		return listingRepository.findAll().stream()
 				.map(Listing::getListingId)
-				.filter(id -> Set.of(5001L, 5002L, 5003L).contains(id))
+				.filter(id -> Set.of(5001L, 5002L, 5003L, 5004L).contains(id))
 				.toList();
 	}
 
@@ -116,6 +117,29 @@ class ListingIngestJobTest {
 				new EtsyMoney(3499, 100, "USD"),
 				2,
 				8,
+				Instant.parse("2026-01-01T00:00:00Z"),
+				Instant.parse("2026-01-01T00:00:00Z"),
+				Instant.parse("2026-01-02T00:00:00Z"),
+				"active",
+				List.of(),
+				null,
+				null,
+				null,
+				null);
+	}
+
+	private static EtsyListing excludedCardigan(long listingId) {
+		return new EtsyListing(
+				listingId,
+				10L,
+				"Mickey Christmas Cardigan, Disney Holiday Sweater",
+				"Knit holiday cardigan",
+				List.of("cardigan", "disney", "christmas"),
+				1603L,
+				"https://www.etsy.com/listing/" + listingId,
+				new EtsyMoney(4499, 100, "USD"),
+				1,
+				3,
 				Instant.parse("2026-01-01T00:00:00Z"),
 				Instant.parse("2026-01-01T00:00:00Z"),
 				Instant.parse("2026-01-02T00:00:00Z"),

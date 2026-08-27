@@ -79,6 +79,13 @@ excludeKeywords:
     - hoodies
     - sweatshirt
     - sweatshirts
+  sweater:
+    - sweater
+    - sweaters
+    - cardigan
+    - cardigans
+    - pullover
+    - pullovers
   nonApparel:
     - mug
     - mugs

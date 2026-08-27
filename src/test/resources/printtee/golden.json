@@ -1,7 +1,7 @@
 {
   "documentedPrecision": 1.0,
   "includeCount": 8,
-  "excludeCount": 8,
+  "excludeCount": 9,
   "threshold": 0.7,
   "cases": [
     {
@@ -114,6 +114,14 @@
       "title": "Printed sweatshirt",
       "description": "Graphic print on a sweatshirt",
       "tags": ["sweatshirt", "print", "graphic"],
+      "taxonomyId": null
+    },
+    {
+      "id": "exclude-mickey-christmas-cardigan",
+      "expectPrintTee": false,
+      "title": "Mickey Christmas Cardigan, Disney Holiday Cardigan, Mickey Mouse Christmas Sweater",
+      "description": "Retro Disney Xmas outfit, geometric ugly sweater knit cardigan",
+      "tags": ["cardigan", "disney", "christmas"],
       "taxonomyId": null
     },
     {

@@ -18,9 +18,9 @@ class PrintTeeClassifierGoldenTest {
 				new ClassPathResource("printtee/golden.json").getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 		GoldenSuite suite = new ObjectMapper().readValue(json, GoldenSuite.class);
 
-		assertThat(suite.cases()).hasSize(16);
+		assertThat(suite.cases()).hasSize(17);
 		assertThat(suite.includeCount()).isEqualTo(8);
-		assertThat(suite.excludeCount()).isEqualTo(8);
+		assertThat(suite.excludeCount()).isEqualTo(9);
 		assertThat(suite.threshold()).isEqualTo(0.7);
 		assertThat(suite.documentedPrecision()).isEqualTo(1.0);
 
