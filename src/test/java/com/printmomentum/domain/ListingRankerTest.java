@@ -56,6 +56,14 @@ class ListingRankerTest {
 		assertThat(ranker.score(SCORED_AT, SCORED_AT, null, 1)).isZero();
 	}
 
+	@Test
+	void trendScoreRewardsEngagementAndPositionClimb() {
+		double quiet = ranker.scoreTrend(new ListingRanker.TrendInput(0, 0, 0, 0, 7));
+		double growing = ranker.scoreTrend(new ListingRanker.TrendInput(20, 200, 30, 5, 7));
+		assertThat(growing).isGreaterThan(quiet);
+		assertFinite(growing);
+	}
+
 	private static void assertFinite(double score) {
 		assertThat(score).isFinite();
 	}

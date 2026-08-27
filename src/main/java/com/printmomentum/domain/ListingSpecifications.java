@@ -19,12 +19,13 @@ public final class ListingSpecifications {
 	}
 
 	public static Specification<Listing> printTeeFeed(
-			BigDecimal minScore, String q, Long shopId, String preset, Boolean bestseller, Instant now) {
+			BigDecimal minScore, String q, Long shopId, String preset, Boolean bestseller, Instant now, MomentumPeriod period) {
+		MomentumPeriod active = period == null ? MomentumPeriod.WEEKLY : period;
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
 			predicates.add(cb.isTrue(root.get("printTee")));
 			if (minScore != null) {
-				predicates.add(cb.greaterThanOrEqualTo(root.get("lastScore"), minScore));
+				predicates.add(cb.greaterThanOrEqualTo(root.get(active.sortField()), minScore));
 			}
 			if (q != null && !q.isBlank()) {
 				String pattern = "%" + q.trim().toLowerCase(Locale.ROOT) + "%";

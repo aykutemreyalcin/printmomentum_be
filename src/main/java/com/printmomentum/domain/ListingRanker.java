@@ -4,20 +4,32 @@ import java.time.Duration;
 import java.time.Instant;
 
 /**
- * Momentum score for print tees: climb speed beats occupancy.
+ * Momentum scores for print tees.
  * <p>
- * {@code days_to_top = first_seen_in_top_at - created_at}<br>
- * {@code days_in_top = scored_at - first_seen_in_top_at}<br>
- * {@code velocity = 1 / max(days_to_top, 0.5)} — hit top in 2d scores higher than 370d to top<br>
- * {@code recency = 1 / max(days_in_top, 0.5)} — recent entry into top-N beats a 30d occupant<br>
- * {@code score = velocity + recency + 1e-9 * max(favorers_delta, 0)}<br>
- * Favorers delta is a tie-breaker only (cannot overturn a 2-day climb vs a 30-day occupant).
- * Dividing by {@code max(days, 0.5)} guards zero and negative durations.
+ * <b>Daily</b> — climb speed into top-N (short-term spike detection):<br>
+ * {@code velocity = 1 / max(days_to_top, 0.5)}<br>
+ * {@code recency = 1 / max(days_in_top, 0.5)}<br>
+ * {@code daily = velocity + recency + 1e-9 * max(favorers_delta, 0)}<br>
+ * <p>
+ * <b>Weekly / monthly</b> — sustained trend from crawl history:<br>
+ * favori rate + view rate + rankable position climb + favori acceleration.
  */
 public class ListingRanker {
 
 	static final double MIN_DAYS = 0.5;
 	static final double FAVORERS_TIE_WEIGHT = 1e-9;
+
+	public record TrendInput(
+			int favorersDelta,
+			Integer viewsDelta,
+			int positionImprovement,
+			int accelerationFavorers,
+			double windowDays) {
+	}
+
+	public double scoreDaily(Instant createdAt, Instant firstSeenInTopAt, Instant scoredAt, int favorersDelta) {
+		return score(createdAt, firstSeenInTopAt, scoredAt, favorersDelta);
+	}
 
 	public double score(Instant createdAt, Instant firstSeenInTopAt, Instant scoredAt, int favorersDelta) {
 		if (createdAt == null || firstSeenInTopAt == null || scoredAt == null) {
@@ -27,6 +39,24 @@ public class ListingRanker {
 		double recency = 1.0 / clampDays(daysBetween(firstSeenInTopAt, scoredAt));
 		double favorersTie = Math.max(favorersDelta, 0) * FAVORERS_TIE_WEIGHT;
 		return velocity + recency + favorersTie;
+	}
+
+	/**
+	 * Trend momentum for weekly (7d) or monthly (30d) windows.
+	 * Engagement and acceleration are log-scaled per day; position climb is normalized to top-N.
+	 */
+	public double scoreTrend(TrendInput input) {
+		if (input == null) {
+			return 0.0;
+		}
+		double windowDays = clampDays(input.windowDays());
+		double engagement = Math.log1p(Math.max(input.favorersDelta(), 0)) / windowDays;
+		double views = input.viewsDelta() != null
+				? Math.log1p(Math.max(input.viewsDelta(), 0)) / windowDays
+				: 0.0;
+		double position = input.positionImprovement() > 0 ? input.positionImprovement() / 100.0 : 0.0;
+		double acceleration = Math.log1p(Math.max(input.accelerationFavorers(), 0)) / (windowDays / 2.0);
+		return engagement * 2.0 + views * 0.5 + position * 1.5 + acceleration * 1.0;
 	}
 
 	public Double daysToTop(Instant createdAt, Instant firstSeenInTopAt) {

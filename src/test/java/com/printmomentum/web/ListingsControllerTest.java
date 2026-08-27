@@ -50,7 +50,7 @@ class ListingsControllerTest {
 		seedPrintTee(9101L, "BE009 high momentum tee", "0.900000000", "Shop High");
 		seedPrintTee(9102L, "BE009 low momentum tee", "0.100000000", "Shop Low");
 
-		mockMvc.perform(get("/api/v1/listings").param("q", "BE009"))
+		mockMvc.perform(get("/api/v1/listings").param("q", "BE009").param("momentumPeriod", "daily"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items.length()").value(2))
 				.andExpect(jsonPath("$.items[0].listingId").value(9101))
@@ -73,7 +73,7 @@ class ListingsControllerTest {
 		seedPrintTee(9111L, "BE009size high", "0.800000000", "Shop A");
 		seedPrintTee(9112L, "BE009size low", "0.200000000", "Shop B");
 
-		mockMvc.perform(get("/api/v1/listings").param("q", "BE009size").param("size", "1"))
+		mockMvc.perform(get("/api/v1/listings").param("q", "BE009size").param("size", "1").param("momentumPeriod", "daily"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items.length()").value(1))
 				.andExpect(jsonPath("$.size").value(1))
@@ -109,7 +109,7 @@ class ListingsControllerTest {
 		seedPrintTee(9131L, "BE009 chart high", "0.900000000", "Shop High");
 		seedPrintTee(9132L, "BE009 chart low", "0.100000000", "Shop Low");
 
-		mockMvc.perform(get("/api/v1/listings/top-chart").param("limit", "2").param("snapshotLimit", "5"))
+		mockMvc.perform(get("/api/v1/listings/top-chart").param("limit", "2").param("snapshotLimit", "5").param("momentumPeriod", "daily"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.limit").value(2))
 				.andExpect(jsonPath("$.items.length()").value(2))
@@ -117,6 +117,31 @@ class ListingsControllerTest {
 				.andExpect(jsonPath("$.items[0].momentumScore").value(0.9))
 				.andExpect(jsonPath("$.items[0].snapshots").isArray())
 				.andExpect(jsonPath("$.items[1].listingId").value(9132));
+	}
+
+	@Test
+	void weeklyMomentumOrdersByWeeklyScore() throws Exception {
+		seedPrintTee(9141L, "BE009 weekly low", "0.900000000", "Shop A");
+		seedPrintTee(9142L, "BE009 weekly high", "0.100000000", "Shop B");
+		Listing low = listingRepository.findById(9141L).orElseThrow();
+		low.setLastScoreWeekly(new BigDecimal("0.200000000"));
+		listingRepository.save(low);
+		Listing high = listingRepository.findById(9142L).orElseThrow();
+		high.setLastScoreWeekly(new BigDecimal("2.500000000"));
+		listingRepository.save(high);
+
+		mockMvc.perform(get("/api/v1/listings").param("q", "BE009 weekly").param("momentumPeriod", "weekly"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items.length()").value(2))
+				.andExpect(jsonPath("$.items[0].listingId").value(9142))
+				.andExpect(jsonPath("$.items[0].momentumScore").value(2.5))
+				.andExpect(jsonPath("$.items[1].listingId").value(9141));
+	}
+
+	@Test
+	void invalidMomentumPeriodIsBadRequest() throws Exception {
+		mockMvc.perform(get("/api/v1/listings").param("momentumPeriod", "hourly"))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test

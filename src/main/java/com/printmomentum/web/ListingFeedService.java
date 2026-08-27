@@ -14,6 +14,7 @@ import com.printmomentum.domain.ListingSnapshotRepository;
 import com.printmomentum.domain.ListingSpecifications;
 import com.printmomentum.domain.ListingTakeaway;
 import com.printmomentum.domain.ListingTimeline;
+import com.printmomentum.domain.MomentumPeriod;
 import com.printmomentum.domain.PrintTeeClassifier;
 import com.printmomentum.domain.QueryStats;
 import com.printmomentum.domain.QueryStatsRepository;
@@ -96,9 +97,21 @@ public class ListingFeedService {
 	}
 
 	@Transactional(readOnly = true)
-	public ListingPageResponse list(int page, int size, Integer maxDaysToTop, BigDecimal minScore, String q, Long shopId, String preset, Boolean bestseller) {
+	public ListingPageResponse list(
+			int page,
+			int size,
+			Integer maxDaysToTop,
+			BigDecimal minScore,
+			String q,
+			Long shopId,
+			String preset,
+			Boolean bestseller,
+			MomentumPeriod momentumPeriod) {
+		MomentumPeriod period = momentumPeriod == null ? MomentumPeriod.WEEKLY : momentumPeriod;
 		List<Listing> matches = listingRepository
-				.findAll(ListingSpecifications.printTeeFeed(minScore, q, shopId, preset, bestseller, Instant.now()), scoreSort())
+				.findAll(
+						ListingSpecifications.printTeeFeed(minScore, q, shopId, preset, bestseller, Instant.now(), period),
+						scoreSort(period))
 				.stream()
 				.filter(listing -> withinMaxDaysToTop(listing, maxDaysToTop))
 				.filter(listing -> matchesClimbing(listing, preset))
@@ -108,22 +121,25 @@ public class ListingFeedService {
 		Set<Long> favoriteIds = favoriteIdsForCurrentUser();
 		Map<Long, List<QueryHitItem>> hits = queryHitsFor(matches.subList(from, to));
 		List<ListingFeedItem> items = matches.subList(from, to).stream()
-				.map(listing -> toItem(listing, favoriteIds.contains(listing.getListingId()), hits.getOrDefault(listing.getListingId(), List.of())))
+				.map(listing -> toItem(listing, favoriteIds.contains(listing.getListingId()), hits.getOrDefault(listing.getListingId(), List.of()), period))
 				.toList();
 		return new ListingPageResponse(items, page, size, matches.size());
 	}
 
 	@Transactional(readOnly = true)
-	public TopChartResponse topChart(int limit, int snapshotLimit) {
+	public TopChartResponse topChart(int limit, int snapshotLimit, MomentumPeriod momentumPeriod) {
+		MomentumPeriod period = momentumPeriod == null ? MomentumPeriod.WEEKLY : momentumPeriod;
 		int cappedLimit = Math.min(Math.max(limit, 1), 50);
 		int cappedSnapshots = Math.min(Math.max(snapshotLimit, 1), 200);
 		List<Listing> top = listingRepository
-				.findAll(ListingSpecifications.printTeeFeed(null, null, null, null, null, Instant.now()), scoreSort())
+				.findAll(
+						ListingSpecifications.printTeeFeed(null, null, null, null, null, Instant.now(), period),
+						scoreSort(period))
 				.stream()
 				.limit(cappedLimit)
 				.toList();
 		List<TopChartItem> items =
-				top.stream().map(listing -> toTopChartItem(listing, cappedSnapshots)).toList();
+				top.stream().map(listing -> toTopChartItem(listing, cappedSnapshots, period)).toList();
 		return new TopChartResponse(cappedLimit, cappedSnapshots, items);
 	}
 
@@ -139,7 +155,11 @@ public class ListingFeedService {
 		int from = Math.min(page * size, listings.size());
 		int to = Math.min(from + size, listings.size());
 		List<ListingFeedItem> items = listings.subList(from, to).stream()
-				.map(listing -> toItem(listing, true, queryHitsFor(listings.subList(from, to)).getOrDefault(listing.getListingId(), List.of())))
+				.map(listing -> toItem(
+						listing,
+						true,
+						queryHitsFor(listings.subList(from, to)).getOrDefault(listing.getListingId(), List.of()),
+						MomentumPeriod.WEEKLY))
 				.toList();
 		return new ListingPageResponse(items, page, size, listings.size());
 	}
@@ -162,7 +182,7 @@ public class ListingFeedService {
 		List<QueryHitItem> hits = queryHitsForListing(listing);
 		List<QueryPeerItem> peers = queryPeers(hits);
 		QueryPeerItem primary = peers.stream().min(Comparator.comparingInt(QueryPeerItem::position)).orElse(null);
-		ListingFeedItem item = toItem(listing, favoriteIdsForCurrentUser().contains(listingId), hits);
+		ListingFeedItem item = toItem(listing, favoriteIdsForCurrentUser().contains(listingId), hits, MomentumPeriod.WEEKLY);
 		List<String> takeaway = listingTakeaway.lines(new ListingTakeaway.Input(
 				item.daysToTop(),
 				item.estSales30d(),
@@ -289,7 +309,7 @@ public class ListingFeedService {
 		return new HashSet<>(userFavoriteRepository.findListingIdsByUserId(user.getId()));
 	}
 
-	private TopChartItem toTopChartItem(Listing listing, int snapshotLimit) {
+	private TopChartItem toTopChartItem(Listing listing, int snapshotLimit, MomentumPeriod period) {
 		List<ListingSnapshot> snapshots = new ArrayList<>(listingSnapshotRepository.findByListingListingIdOrderByObservedAtDescIdDesc(
 				listing.getListingId(), PageRequest.of(0, snapshotLimit)));
 		Collections.reverse(snapshots);
@@ -298,14 +318,14 @@ public class ListingFeedService {
 				listing.getTitle(),
 				imageUrl(listing),
 				listing.getUrl(),
-				listing.getLastScore(),
+				momentumScore(listing, period),
 				listingRanker.daysToTop(listing.getEtsyCreatedAt(), listing.getFirstSeenInTopAt()),
 				listing.getNumFavorers(),
 				listing.getViews(),
 				snapshots.stream().map(ListingFeedService::toSnapshotItem).toList());
 	}
 
-	private ListingFeedItem toItem(Listing listing, boolean favorite, List<QueryHitItem> queryHits) {
+	private ListingFeedItem toItem(Listing listing, boolean favorite, List<QueryHitItem> queryHits, MomentumPeriod period) {
 		Instant now = Instant.now();
 		Instant created = listing.getOriginalCreatedAt() != null
 				? listing.getOriginalCreatedAt()
@@ -321,7 +341,7 @@ public class ListingFeedService {
 				imageUrl(listing),
 				listing.getUrl(),
 				listingRanker.daysToTop(listing.getEtsyCreatedAt(), listing.getFirstSeenInTopAt()),
-				listing.getLastScore(),
+				momentumScore(listing, period),
 				listing.getNumFavorers(),
 				shop.getName(),
 				shop.getShopId(),
@@ -463,7 +483,16 @@ public class ListingFeedService {
 		return Duration.between(created, now).toMinutes() / (60.0 * 24.0);
 	}
 
-	private static Sort scoreSort() {
-		return Sort.by(Sort.Order.desc("lastScore").nullsLast(), Sort.Order.desc("listingId"));
+	private static BigDecimal momentumScore(Listing listing, MomentumPeriod period) {
+		return switch (period == null ? MomentumPeriod.WEEKLY : period) {
+			case DAILY -> listing.getLastScore();
+			case WEEKLY -> listing.getLastScoreWeekly();
+			case MONTHLY -> listing.getLastScoreMonthly();
+		};
+	}
+
+	private static Sort scoreSort(MomentumPeriod period) {
+		MomentumPeriod active = period == null ? MomentumPeriod.WEEKLY : period;
+		return Sort.by(Sort.Order.desc(active.sortField()).nullsLast(), Sort.Order.desc("listingId"));
 	}
 }

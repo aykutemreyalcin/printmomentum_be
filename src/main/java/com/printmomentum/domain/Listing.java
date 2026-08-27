@@ -71,6 +71,12 @@ public class Listing {
 	@Column(precision = 18, scale = 9)
 	private BigDecimal lastScore;
 
+	@Column(name = "last_score_weekly", precision = 18, scale = 9)
+	private BigDecimal lastScoreWeekly;
+
+	@Column(name = "last_score_monthly", precision = 18, scale = 9)
+	private BigDecimal lastScoreMonthly;
+
 	private Instant lastScoredAt;
 
 	private Integer views;
@@ -281,6 +287,22 @@ public class Listing {
 
 	public void setLastScore(BigDecimal lastScore) {
 		this.lastScore = lastScore;
+	}
+
+	public BigDecimal getLastScoreWeekly() {
+		return lastScoreWeekly;
+	}
+
+	public void setLastScoreWeekly(BigDecimal lastScoreWeekly) {
+		this.lastScoreWeekly = lastScoreWeekly;
+	}
+
+	public BigDecimal getLastScoreMonthly() {
+		return lastScoreMonthly;
+	}
+
+	public void setLastScoreMonthly(BigDecimal lastScoreMonthly) {
+		this.lastScoreMonthly = lastScoreMonthly;
 	}
 
 	public Instant getLastScoredAt() {
