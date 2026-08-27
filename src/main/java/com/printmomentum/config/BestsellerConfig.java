@@ -26,8 +26,8 @@ public class BestsellerConfig {
 				.baseUrl(baseUrl)
 				.defaultHeader(
 						"User-Agent",
-						"Mozilla/5.0 (compatible; PrintMomentum/0.1; +https://printmomentum.local)")
-				.defaultHeader("Accept", "text/html,application/xhtml+xml")
+						"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+				.defaultHeader("Accept", "application/json")
 				.requestFactory(requestFactory)
 				.build();
 	}
