@@ -119,10 +119,9 @@ public class NicheTermService {
 		}
 		int total = Math.max(listings.size(), 1);
 		Instant now = Instant.now();
-		LocalDate day = now.atZone(ISTANBUL).toLocalDate();
 		transactionTemplate.executeWithoutResult(status -> {
 			listingNicheTermRepository.deleteAllInBatch();
-			nicheWindowSnapshotRepository.deleteByObservedDay(day);
+			nicheWindowSnapshotRepository.deleteAllInBatch();
 			nicheTermRepository.deleteAllInBatch();
 		});
 

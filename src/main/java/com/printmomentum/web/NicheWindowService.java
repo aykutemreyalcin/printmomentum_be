@@ -70,11 +70,15 @@ public class NicheWindowService {
 						snapshot.getBreakInRate()))
 				.toList();
 		List<NicheTermItem> related = relatedTerms(term.getLabel());
+		int listingCount = term.getListingCount();
+		if (listingCount == 0) {
+			listingCount = listingNicheTermRepository.findByNicheTermId(term.getId()).size();
+		}
 		return new NicheDetailResponse(
 				term.getSlug(),
 				term.getLabel(),
 				term.getWindowState(),
-				term.getListingCount(),
+				listingCount,
 				term.getNewEntrants14d(),
 				term.getCloneDensity7d(),
 				term.getBreakInRate(),
@@ -142,6 +146,10 @@ public class NicheWindowService {
 	}
 
 	private NicheTermItem toItem(NicheTerm term) {
+		int listingCount = term.getListingCount();
+		if (listingCount == 0) {
+			listingCount = listingNicheTermRepository.findByNicheTermId(term.getId()).size();
+		}
 		NicheTopListingItem top = listingNicheTermRepository.findByNicheTermId(term.getId()).stream()
 				.map(ListingNicheTerm::getListingId)
 				.map(listingRepository::findById)
@@ -154,7 +162,7 @@ public class NicheWindowService {
 				term.getSlug(),
 				term.getLabel(),
 				term.getWindowState(),
-				term.getListingCount(),
+				listingCount,
 				term.getNewEntrants14d(),
 				term.getCloneDensity7d(),
 				term.getBreakInRate(),
