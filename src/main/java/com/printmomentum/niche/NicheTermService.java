@@ -119,7 +119,12 @@ public class NicheTermService {
 		}
 		int total = Math.max(listings.size(), 1);
 		Instant now = Instant.now();
-		transactionTemplate.executeWithoutResult(status -> listingNicheTermRepository.deleteAllInBatch());
+		LocalDate day = now.atZone(ISTANBUL).toLocalDate();
+		transactionTemplate.executeWithoutResult(status -> {
+			listingNicheTermRepository.deleteAllInBatch();
+			nicheWindowSnapshotRepository.deleteByObservedDay(day);
+			nicheTermRepository.deleteAllInBatch();
+		});
 
 		int assignments = 0;
 		for (Listing listing : listings) {
@@ -236,6 +241,7 @@ public class NicheTermService {
 				metrics.entrantMomentum() == null ? null : decimal(metrics.entrantMomentum(), 6),
 				now);
 		nicheTermRepository.save(term);
+		nicheWindowSnapshotRepository.deleteByNicheTermIdAndObservedDay(nicheTermId, day);
 		nicheWindowSnapshotRepository.save(new NicheWindowSnapshot(
 				term,
 				day,
