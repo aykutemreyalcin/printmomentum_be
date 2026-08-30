@@ -19,11 +19,13 @@ public class NicheWindowController {
 	private static final int MAX_PAGE_SIZE = 100;
 
 	private final NicheWindowService nicheWindowService;
-	private final com.printmomentum.niche.NicheTermService nicheTermService;
+	private final com.printmomentum.niche.NicheReindexJob nicheReindexJob;
 
-	public NicheWindowController(NicheWindowService nicheWindowService, com.printmomentum.niche.NicheTermService nicheTermService) {
+	public NicheWindowController(
+			NicheWindowService nicheWindowService,
+			com.printmomentum.niche.NicheReindexJob nicheReindexJob) {
 		this.nicheWindowService = nicheWindowService;
-		this.nicheTermService = nicheTermService;
+		this.nicheReindexJob = nicheReindexJob;
 	}
 
 	@GetMapping
@@ -64,8 +66,10 @@ public class NicheWindowController {
 
 	@PostMapping("/reindex")
 	@PreAuthorize("hasRole('admin')")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@ResponseStatus(HttpStatus.ACCEPTED)
 	public void reindex() {
-		nicheTermService.reindexAll();
+		if (!nicheReindexJob.triggerAsync()) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "niche reindex already running");
+		}
 	}
 }

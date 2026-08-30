@@ -13,11 +13,13 @@ public class NicheStartupRunner implements ApplicationRunner {
 
 	private static final Logger log = LoggerFactory.getLogger(NicheStartupRunner.class);
 
-	private final NicheTermService nicheTermService;
+	private final NicheReindexJob nicheReindexJob;
 	private final com.printmomentum.domain.NicheTermRepository nicheTermRepository;
 
-	public NicheStartupRunner(NicheTermService nicheTermService, com.printmomentum.domain.NicheTermRepository nicheTermRepository) {
-		this.nicheTermService = nicheTermService;
+	public NicheStartupRunner(
+			NicheReindexJob nicheReindexJob,
+			com.printmomentum.domain.NicheTermRepository nicheTermRepository) {
+		this.nicheReindexJob = nicheReindexJob;
 		this.nicheTermRepository = nicheTermRepository;
 	}
 
@@ -26,7 +28,7 @@ public class NicheStartupRunner implements ApplicationRunner {
 		if (nicheTermRepository.count() > 0) {
 			return;
 		}
-		log.info("niche index empty; running initial reindex");
-		nicheTermService.reindexAll();
+		log.info("niche index empty; scheduling initial reindex");
+		nicheReindexJob.triggerAsync();
 	}
 }
