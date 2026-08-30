@@ -26,7 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -45,6 +47,7 @@ public class NicheTermService {
 	private final NicheProperties properties;
 	private final ObjectMapper objectMapper;
 	private final EtsyClient etsyClient;
+	private final TransactionTemplate transactionTemplate;
 
 	public NicheTermService(
 			ListingRepository listingRepository,
@@ -55,7 +58,8 @@ public class NicheTermService {
 			NicheWindowCalculator nicheWindowCalculator,
 			NicheProperties properties,
 			ObjectMapper objectMapper,
-			EtsyClient etsyClient) {
+			EtsyClient etsyClient,
+			PlatformTransactionManager transactionManager) {
 		this.listingRepository = listingRepository;
 		this.nicheTermRepository = nicheTermRepository;
 		this.listingNicheTermRepository = listingNicheTermRepository;
@@ -65,6 +69,7 @@ public class NicheTermService {
 		this.properties = properties;
 		this.objectMapper = objectMapper;
 		this.etsyClient = etsyClient;
+		this.transactionTemplate = new TransactionTemplate(transactionManager);
 	}
 
 	@Transactional
@@ -97,7 +102,6 @@ public class NicheTermService {
 		}
 	}
 
-	@Transactional
 	public int reindexAll() {
 		List<Listing> listings = listingRepository.findByPrintTeeTrue();
 		Map<String, Integer> docFreq = new HashMap<>();
@@ -114,77 +118,34 @@ public class NicheTermService {
 			}
 		}
 		int total = Math.max(listings.size(), 1);
-		listingNicheTermRepository.deleteAllInBatch();
-		Map<String, NicheTerm> termsByLabel = new HashMap<>();
 		Instant now = Instant.now();
+		transactionTemplate.executeWithoutResult(status -> listingNicheTermRepository.deleteAllInBatch());
+
 		int assignments = 0;
 		for (Listing listing : listings) {
-			Set<Long> assignedTermIds = new HashSet<>();
-			for (NicheTermExtractor.ExtractedTerm extractedTerm : pending.getOrDefault(listing.getListingId(), List.of())) {
-				int freq = docFreq.getOrDefault(extractedTerm.label(), 0);
-				if (freq / (double) total > properties.maxIdfRatio()) {
-					continue;
-				}
-				if (!passesQuickFilter(extractedTerm.label())) {
-					continue;
-				}
-				NicheTerm term = termsByLabel.computeIfAbsent(extractedTerm.label(), label -> nicheTermRepository
-						.findByLabel(label)
-						.orElseGet(() -> nicheTermRepository.save(new NicheTerm(NicheSlug.fromLabel(label), label, now))));
-				term.touch(now);
-				if (assignedTermIds.add(term.getId())) {
-					listingNicheTermRepository.save(new ListingNicheTerm(
-							listing.getListingId(),
-							term,
-							BigDecimal.valueOf(extractedTerm.weight()).setScale(3, RoundingMode.HALF_UP),
-							extractedTerm.source()));
-					assignments++;
-				}
-			}
+			Integer batchAssignments = transactionTemplate.execute(status -> assignReindexListing(
+					listing.getListingId(),
+					pending.getOrDefault(listing.getListingId(), List.of()),
+					docFreq,
+					total,
+					now));
+			assignments += batchAssignments == null ? 0 : batchAssignments;
 		}
-		nicheTermRepository.findAll().forEach(term -> {
-			int count = listingNicheTermRepository.findByNicheTermId(term.getId()).size();
-			term.setListingCount(count);
-			nicheTermRepository.save(term);
-		});
-		recomputeWindows(now);
-		validateEtsyCounts(now);
+
+		for (NicheTerm term : nicheTermRepository.findAll()) {
+			transactionTemplate.executeWithoutResult(status -> refreshListingCount(term.getId()));
+		}
+		for (NicheTerm term : nicheTermRepository.findAll()) {
+			transactionTemplate.executeWithoutResult(status -> recomputeWindowForTerm(term.getId(), now));
+		}
+		transactionTemplate.executeWithoutResult(status -> validateEtsyCounts(now));
 		log.info("niche reindex complete listings={} assignments={}", listings.size(), assignments);
 		return assignments;
 	}
 
-	@Transactional
 	public void recomputeWindows(Instant now) {
-		LocalDate day = now.atZone(ISTANBUL).toLocalDate();
 		for (NicheTerm term : nicheTermRepository.findAll()) {
-			List<Listing> cohort = listingNicheTermRepository.findByNicheTermId(term.getId()).stream()
-					.map(ListingNicheTerm::getListingId)
-					.map(listingRepository::findById)
-					.flatMap(java.util.Optional::stream)
-					.filter(Listing::isPrintTee)
-					.toList();
-			term.setListingCount(cohort.size());
-			NicheWindowCalculator.Metrics metrics = nicheWindowCalculator.compute(cohort, now);
-			term.applyWindow(
-					metrics.state().name(),
-					metrics.newEntrants14d(),
-					decimal(metrics.cloneDensity7d(), 4),
-					decimal(metrics.breakInRate(), 4),
-					metrics.incumbentAgeDays() == null ? null : decimal(metrics.incumbentAgeDays(), 2),
-					metrics.entrantMomentum() == null ? null : decimal(metrics.entrantMomentum(), 6),
-					now);
-			nicheTermRepository.save(term);
-			nicheWindowSnapshotRepository.save(new NicheWindowSnapshot(
-					term,
-					day,
-					metrics.state().name(),
-					metrics.listingCount(),
-					metrics.newEntrants14d(),
-					decimal(metrics.cloneDensity7d(), 4),
-					decimal(metrics.breakInRate(), 4),
-					metrics.incumbentAgeDays() == null ? null : decimal(metrics.incumbentAgeDays(), 2),
-					metrics.entrantMomentum() == null ? null : decimal(metrics.entrantMomentum(), 6),
-					term.getEtsyCount()));
+			transactionTemplate.executeWithoutResult(status -> recomputeWindowForTerm(term.getId(), now));
 		}
 	}
 
@@ -207,6 +168,85 @@ public class NicheTermService {
 				log.warn("niche etsy validate failed term={}: {}", term.getLabel(), ex.toString());
 			}
 		}
+	}
+
+	private int assignReindexListing(
+			long listingId,
+			List<NicheTermExtractor.ExtractedTerm> extractedTerms,
+			Map<String, Integer> docFreq,
+			int total,
+			Instant now) {
+		Set<Long> assignedTermIds = new HashSet<>();
+		int assignments = 0;
+		for (NicheTermExtractor.ExtractedTerm extractedTerm : extractedTerms) {
+			int freq = docFreq.getOrDefault(extractedTerm.label(), 0);
+			if (freq / (double) total > properties.maxIdfRatio()) {
+				continue;
+			}
+			if (!passesQuickFilter(extractedTerm.label())) {
+				continue;
+			}
+			NicheTerm term = nicheTermRepository
+					.findByLabel(extractedTerm.label())
+					.orElseGet(() -> nicheTermRepository.save(new NicheTerm(
+							NicheSlug.fromLabel(extractedTerm.label()), extractedTerm.label(), now)));
+			term.touch(now);
+			nicheTermRepository.save(term);
+			if (assignedTermIds.add(term.getId())) {
+				listingNicheTermRepository.save(new ListingNicheTerm(
+						listingId,
+						term,
+						BigDecimal.valueOf(extractedTerm.weight()).setScale(3, RoundingMode.HALF_UP),
+						extractedTerm.source()));
+				assignments++;
+			}
+		}
+		return assignments;
+	}
+
+	private void refreshListingCount(long nicheTermId) {
+		NicheTerm term = nicheTermRepository.findById(nicheTermId).orElse(null);
+		if (term == null) {
+			return;
+		}
+		term.setListingCount(listingNicheTermRepository.findByNicheTermId(nicheTermId).size());
+		nicheTermRepository.save(term);
+	}
+
+	private void recomputeWindowForTerm(long nicheTermId, Instant now) {
+		NicheTerm term = nicheTermRepository.findById(nicheTermId).orElse(null);
+		if (term == null) {
+			return;
+		}
+		LocalDate day = now.atZone(ISTANBUL).toLocalDate();
+		List<Listing> cohort = listingNicheTermRepository.findByNicheTermId(nicheTermId).stream()
+				.map(ListingNicheTerm::getListingId)
+				.map(listingRepository::findById)
+				.flatMap(java.util.Optional::stream)
+				.filter(Listing::isPrintTee)
+				.toList();
+		term.setListingCount(cohort.size());
+		NicheWindowCalculator.Metrics metrics = nicheWindowCalculator.compute(cohort, now);
+		term.applyWindow(
+				metrics.state().name(),
+				metrics.newEntrants14d(),
+				decimal(metrics.cloneDensity7d(), 4),
+				decimal(metrics.breakInRate(), 4),
+				metrics.incumbentAgeDays() == null ? null : decimal(metrics.incumbentAgeDays(), 2),
+				metrics.entrantMomentum() == null ? null : decimal(metrics.entrantMomentum(), 6),
+				now);
+		nicheTermRepository.save(term);
+		nicheWindowSnapshotRepository.save(new NicheWindowSnapshot(
+				term,
+				day,
+				metrics.state().name(),
+				metrics.listingCount(),
+				metrics.newEntrants14d(),
+				decimal(metrics.cloneDensity7d(), 4),
+				decimal(metrics.breakInRate(), 4),
+				metrics.incumbentAgeDays() == null ? null : decimal(metrics.incumbentAgeDays(), 2),
+				metrics.entrantMomentum() == null ? null : decimal(metrics.entrantMomentum(), 6),
+				term.getEtsyCount()));
 	}
 
 	private boolean passesQuickFilter(String label) {
