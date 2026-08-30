@@ -176,3 +176,4 @@ public class BestsellerMarker {
 	private record VerificationRun(int checked, int confirmed, int cleared, boolean reliable) {
 	}
 }
+

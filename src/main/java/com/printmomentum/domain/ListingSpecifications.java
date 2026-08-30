@@ -19,7 +19,15 @@ public final class ListingSpecifications {
 	}
 
 	public static Specification<Listing> printTeeFeed(
-			BigDecimal minScore, String q, Long shopId, String preset, Boolean bestseller, Instant now, MomentumPeriod period) {
+			BigDecimal minScore,
+			String q,
+			Long shopId,
+			String preset,
+			Boolean bestseller,
+			String nicheSlug,
+			String nicheWindow,
+			Instant now,
+			MomentumPeriod period) {
 		MomentumPeriod active = period == null ? MomentumPeriod.WEEKLY : period;
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
@@ -34,6 +42,19 @@ public final class ListingSpecifications {
 			if (shopId != null) {
 				Join<Listing, Shop> shop = root.join("shop");
 				predicates.add(cb.equal(shop.get("shopId"), shopId));
+			}
+			if (nicheSlug != null && !nicheSlug.isBlank()) {
+				var subquery = query.subquery(Long.class);
+				var link = subquery.from(com.printmomentum.domain.ListingNicheTerm.class);
+				var term = link.join("nicheTerm");
+				subquery.select(link.get("listingId")).where(cb.equal(term.get("slug"), nicheSlug.trim()));
+				predicates.add(root.get("listingId").in(subquery));
+			} else if (nicheWindow != null && !nicheWindow.isBlank()) {
+				var subquery = query.subquery(Long.class);
+				var link = subquery.from(com.printmomentum.domain.ListingNicheTerm.class);
+				var term = link.join("nicheTerm");
+				subquery.select(link.get("listingId")).where(cb.equal(term.get("windowState"), nicheWindow.trim().toUpperCase(Locale.ROOT)));
+				predicates.add(root.get("listingId").in(subquery));
 			}
 			Instant moment = now == null ? Instant.now() : now;
 			addPreset(predicates, root, cb, preset, moment);

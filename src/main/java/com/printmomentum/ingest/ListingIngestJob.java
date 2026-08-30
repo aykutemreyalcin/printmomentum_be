@@ -81,6 +81,7 @@ public class ListingIngestJob {
 	private final TransactionTemplate transactionTemplate;
 	private final ObjectMapper objectMapper;
 	private final Clock clock;
+	private final com.printmomentum.niche.NicheTermService nicheTermService;
 
 	public ListingIngestJob(
 			EtsyClient etsyClient,
@@ -102,6 +103,7 @@ public class ListingIngestJob {
 			IngestStatusStore ingestStatusStore,
 			PlatformTransactionManager transactionManager,
 			ObjectMapper objectMapper,
+			com.printmomentum.niche.NicheTermService nicheTermService,
 			@Autowired(required = false) Clock clock) {
 		this.etsyClient = etsyClient;
 		this.classifier = classifier;
@@ -122,6 +124,7 @@ public class ListingIngestJob {
 		this.ingestStatusStore = ingestStatusStore;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
 		this.objectMapper = objectMapper;
+		this.nicheTermService = nicheTermService;
 		this.clock = clock != null ? clock : Clock.systemUTC();
 	}
 
@@ -475,6 +478,7 @@ public class ListingIngestJob {
 		if (source != null && !source.isBlank() && !source.startsWith("refresh:")) {
 			upsertQueryHit(listing, source, position, crawlRunId, observedAt);
 		}
+		nicheTermService.assignListing(listing);
 		return new PersistResult(true, newToIndex);
 	}
 
