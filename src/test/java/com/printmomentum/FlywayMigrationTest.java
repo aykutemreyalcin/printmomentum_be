@@ -29,7 +29,10 @@ class FlywayMigrationTest {
 		assertThat(tableCount("user_favorite")).isEqualTo(1);
 		assertThat(tableCount("listing_query")).isEqualTo(1);
 		assertThat(tableCount("shop_crawl_queue")).isEqualTo(1);
-		assertThat(flywayVersion()).isEqualTo("12");
+		assertThat(tableCount("niche_term")).isEqualTo(1);
+		assertThat(tableCount("listing_niche_term")).isEqualTo(1);
+		assertThat(tableCount("niche_window_snapshot")).isEqualTo(1);
+		assertThat(flywayVersion()).isEqualTo("13");
 	}
 
 	@Test

@@ -1,0 +1,16 @@
+printmomentum:
+  niche:
+    max-idf-ratio: 0.25
+    min-listings-for-window: 3
+    low-data-listing-count: 2
+    clone-similarity-threshold: 0.65
+    etsy-validate-min-listings: 5
+    etsy-validate-max-per-day: 20
+    open-new-entrants-min: 2
+    open-break-in-rate-min: 0.40
+    open-clone-density-max: 0.35
+    closing-clone-density-min: 0.35
+    closing-break-in-rate-max: 0.40
+    closed-new-entrants-days: 30
+    closed-incumbent-age-days: 21
+    closed-break-in-rate-max: 0.15

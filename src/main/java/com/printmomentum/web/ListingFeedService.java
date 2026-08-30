@@ -106,11 +106,14 @@ public class ListingFeedService {
 			Long shopId,
 			String preset,
 			Boolean bestseller,
+			String nicheSlug,
+			String nicheWindow,
 			MomentumPeriod momentumPeriod) {
 		MomentumPeriod period = momentumPeriod == null ? MomentumPeriod.WEEKLY : momentumPeriod;
 		List<Listing> matches = listingRepository
 				.findAll(
-						ListingSpecifications.printTeeFeed(minScore, q, shopId, preset, bestseller, Instant.now(), period),
+						ListingSpecifications.printTeeFeed(
+								minScore, q, shopId, preset, bestseller, nicheSlug, nicheWindow, Instant.now(), period),
 						scoreSort(period))
 				.stream()
 				.filter(listing -> withinMaxDaysToTop(listing, maxDaysToTop))
@@ -133,7 +136,7 @@ public class ListingFeedService {
 		int cappedSnapshots = Math.min(Math.max(snapshotLimit, 1), 200);
 		List<Listing> top = listingRepository
 				.findAll(
-						ListingSpecifications.printTeeFeed(null, null, null, null, null, Instant.now(), period),
+						ListingSpecifications.printTeeFeed(null, null, null, null, null, null, null, Instant.now(), period),
 						scoreSort(period))
 				.stream()
 				.limit(cappedLimit)

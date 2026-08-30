@@ -63,6 +63,8 @@ public class SecurityConfiguration {
 				.authorizeHttpRequests(req -> req.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 						.requestMatchers(WHITE_LIST_URL)
 						.permitAll()
+						.requestMatchers("/api/v1/niches/**")
+						.hasAnyRole(admin.name(), user.name())
 						.requestMatchers("/api/v1/listings/**")
 						.hasAnyRole(admin.name(), user.name())
 						.requestMatchers("/api/v1/favorites/**")

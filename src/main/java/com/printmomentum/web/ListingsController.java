@@ -51,12 +51,24 @@ public class ListingsController {
 			@RequestParam(required = false) Long shopId,
 			@RequestParam(required = false) String preset,
 			@RequestParam(required = false) Boolean bestseller,
+			@RequestParam(required = false) String nicheSlug,
+			@RequestParam(required = false) String nicheWindow,
 			@RequestParam(required = false) String momentumPeriod) {
 		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..200");
 		}
 		return listingFeedService.list(
-				page, size, maxDaysToTop, minScore, q, shopId, preset, bestseller, parseMomentumPeriod(momentumPeriod));
+				page,
+				size,
+				maxDaysToTop,
+				minScore,
+				q,
+				shopId,
+				preset,
+				bestseller,
+				nicheSlug,
+				nicheWindow,
+				parseMomentumPeriod(momentumPeriod));
 	}
 
 	private static com.printmomentum.domain.MomentumPeriod parseMomentumPeriod(String value) {
