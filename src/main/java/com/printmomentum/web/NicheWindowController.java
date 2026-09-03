@@ -31,13 +31,14 @@ public class NicheWindowController {
 	@GetMapping
 	public NichePageResponse list(
 			@RequestParam(required = false) String window,
+			@RequestParam(required = false) String q,
 			@RequestParam(defaultValue = "momentum") String sort,
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "30") int size) {
 		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 0 and size must be 1..100");
 		}
-		return nicheWindowService.list(window, sort, page, size);
+		return nicheWindowService.list(window, q, sort, page, size);
 	}
 
 	@GetMapping("/stats")
