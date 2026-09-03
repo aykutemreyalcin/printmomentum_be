@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -86,12 +87,7 @@ public class NicheTermService {
 			if (!passesQuickFilter(extractedTerm.label())) {
 				continue;
 			}
-			NicheTerm term = nicheTermRepository
-					.findByLabel(extractedTerm.label())
-					.orElseGet(() -> nicheTermRepository.save(new NicheTerm(
-							NicheSlug.fromLabel(extractedTerm.label()), extractedTerm.label(), now)));
-			term.touch(now);
-			nicheTermRepository.save(term);
+			NicheTerm term = resolveOrCreateTerm(extractedTerm.label(), now);
 			if (assignedTermIds.add(term.getId())) {
 				listingNicheTermRepository.save(new ListingNicheTerm(
 						listing.getListingId(),
@@ -190,12 +186,7 @@ public class NicheTermService {
 			if (!passesQuickFilter(extractedTerm.label())) {
 				continue;
 			}
-			NicheTerm term = nicheTermRepository
-					.findByLabel(extractedTerm.label())
-					.orElseGet(() -> nicheTermRepository.save(new NicheTerm(
-							NicheSlug.fromLabel(extractedTerm.label()), extractedTerm.label(), now)));
-			term.touch(now);
-			nicheTermRepository.save(term);
+			NicheTerm term = resolveOrCreateTerm(extractedTerm.label(), now);
 			if (assignedTermIds.add(term.getId())) {
 				listingNicheTermRepository.save(new ListingNicheTerm(
 						listingId,
@@ -206,6 +197,23 @@ public class NicheTermService {
 			}
 		}
 		return assignments;
+	}
+
+	private NicheTerm resolveOrCreateTerm(String label, Instant now) {
+		NicheTerm term = nicheTermRepository
+				.findByLabel(label)
+				.or(() -> nicheTermRepository.findBySlug(NicheSlug.fromLabel(label)))
+				.orElseGet(() -> {
+					try {
+						return nicheTermRepository.save(new NicheTerm(NicheSlug.fromLabel(label), label, now));
+					} catch (DataIntegrityViolationException ex) {
+						return nicheTermRepository
+								.findBySlug(NicheSlug.fromLabel(label))
+								.orElseThrow(() -> ex);
+					}
+				});
+		term.touch(now);
+		return nicheTermRepository.save(term);
 	}
 
 	private void refreshListingCount(long nicheTermId) {
