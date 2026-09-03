@@ -42,11 +42,20 @@ public class NicheWindowService {
 	}
 
 	@Transactional(readOnly = true)
-	public NichePageResponse list(String window, String sort, int page, int size) {
+	public NichePageResponse list(String window, String q, String sort, int page, int size) {
 		PageRequest pageable = PageRequest.of(page, size, sortOrder(sort));
-		Page<NicheTerm> terms = window == null || window.isBlank()
-				? nicheTermRepository.findAll(pageable)
-				: nicheTermRepository.findByWindowState(NicheWindowState.parse(window).name(), pageable);
+		String query = q == null || q.isBlank() ? null : q.trim();
+		Page<NicheTerm> terms;
+		if (query == null) {
+			terms = window == null || window.isBlank()
+					? nicheTermRepository.findAll(pageable)
+					: nicheTermRepository.findByWindowState(NicheWindowState.parse(window).name(), pageable);
+		} else if (window == null || window.isBlank()) {
+			terms = nicheTermRepository.searchByLabelOrSlug(query, pageable);
+		} else {
+			terms = nicheTermRepository.searchByWindowAndLabelOrSlug(
+					NicheWindowState.parse(window).name(), query, pageable);
+		}
 		List<NicheTermItem> items = terms.stream().map(this::toItem).toList();
 		return new NichePageResponse(items, page, size, (int) terms.getTotalElements());
 	}

@@ -61,6 +61,15 @@ class NicheWindowControllerTest {
 				.andExpect(jsonPath("$.items[0].slug").value("dolly-parton"))
 				.andExpect(jsonPath("$.items[0].window").value("OPEN"));
 
+		mockMvc.perform(get("/api/v1/niches").param("q", "parton"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items.length()").value(1))
+				.andExpect(jsonPath("$.items[0].label").value("dolly parton"));
+
+		mockMvc.perform(get("/api/v1/niches").param("q", "no-match-xyz"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items.length()").value(0));
+
 		mockMvc.perform(get("/api/v1/niches/stats"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.open").value(1))
