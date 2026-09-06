@@ -90,6 +90,12 @@ public class Listing {
 	@Column(name = "reviews_30d")
 	private Integer reviews30d;
 
+	@Column(name = "reviews_7d")
+	private Integer reviews7d;
+
+	@Column(name = "reviews_1d")
+	private Integer reviews1d;
+
 	@Column(length = 32)
 	private String whoMade;
 
@@ -111,6 +117,18 @@ public class Listing {
 
 	@Column(name = "delta_views_7d")
 	private Integer deltaViews7d;
+
+	@Column(name = "delta_favorers_1d")
+	private Integer deltaFavorers1d;
+
+	@Column(name = "delta_views_1d")
+	private Integer deltaViews1d;
+
+	@Column(name = "delta_favorers_30d")
+	private Integer deltaFavorers30d;
+
+	@Column(name = "delta_views_30d")
+	private Integer deltaViews30d;
 
 	private Instant pmBestsellerSince;
 
@@ -353,6 +371,22 @@ public class Listing {
 		this.reviews30d = reviews30d;
 	}
 
+	public Integer getReviews7d() {
+		return reviews7d;
+	}
+
+	public void setReviews7d(Integer reviews7d) {
+		this.reviews7d = reviews7d;
+	}
+
+	public Integer getReviews1d() {
+		return reviews1d;
+	}
+
+	public void setReviews1d(Integer reviews1d) {
+		this.reviews1d = reviews1d;
+	}
+
 	public String getWhoMade() {
 		return whoMade;
 	}
@@ -431,6 +465,38 @@ public class Listing {
 
 	public void setDeltaViews7d(Integer deltaViews7d) {
 		this.deltaViews7d = deltaViews7d;
+	}
+
+	public Integer getDeltaFavorers1d() {
+		return deltaFavorers1d;
+	}
+
+	public void setDeltaFavorers1d(Integer deltaFavorers1d) {
+		this.deltaFavorers1d = deltaFavorers1d;
+	}
+
+	public Integer getDeltaViews1d() {
+		return deltaViews1d;
+	}
+
+	public void setDeltaViews1d(Integer deltaViews1d) {
+		this.deltaViews1d = deltaViews1d;
+	}
+
+	public Integer getDeltaFavorers30d() {
+		return deltaFavorers30d;
+	}
+
+	public void setDeltaFavorers30d(Integer deltaFavorers30d) {
+		this.deltaFavorers30d = deltaFavorers30d;
+	}
+
+	public Integer getDeltaViews30d() {
+		return deltaViews30d;
+	}
+
+	public void setDeltaViews30d(Integer deltaViews30d) {
+		this.deltaViews30d = deltaViews30d;
 	}
 
 	public List<ListingImage> getImages() {

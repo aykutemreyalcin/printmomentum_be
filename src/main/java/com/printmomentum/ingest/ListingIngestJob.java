@@ -632,13 +632,17 @@ public class ListingIngestJob {
 	private void applyWindowDeltas(Listing listing, Instant observedAt) {
 		List<ListingSnapshot> history =
 				listingSnapshotRepository.findByListingListingIdOrderByObservedAtAscIdAsc(listing.getListingId());
-		SnapshotDeltas.Delta delta = snapshotDeltas.delta7d(
-				history.stream()
-						.map(row -> new SnapshotDeltas.Point(row.getObservedAt(), row.getNumFavorers(), row.getViews()))
-						.toList(),
-				observedAt);
-		listing.setDeltaFavorers7d(delta.favorers());
-		listing.setDeltaViews7d(delta.views());
+		List<SnapshotDeltas.Point> points = history.stream()
+				.map(row -> new SnapshotDeltas.Point(row.getObservedAt(), row.getNumFavorers(), row.getViews()))
+				.toList();
+		listing.setDeltaFavorers1d(snapshotDeltas.delta(points, observedAt, Duration.ofDays(1)).favorers());
+		listing.setDeltaViews1d(snapshotDeltas.delta(points, observedAt, Duration.ofDays(1)).views());
+		SnapshotDeltas.Delta delta7d = snapshotDeltas.delta7d(points, observedAt);
+		listing.setDeltaFavorers7d(delta7d.favorers());
+		listing.setDeltaViews7d(delta7d.views());
+		SnapshotDeltas.Delta delta30d = snapshotDeltas.delta(points, observedAt, Duration.ofDays(30));
+		listing.setDeltaFavorers30d(delta30d.favorers());
+		listing.setDeltaViews30d(delta30d.views());
 	}
 
 	private void applyMomentumScores(Listing listing, Instant observedAt, boolean rankable, int position) {
@@ -692,6 +696,8 @@ public class ListingIngestJob {
 			try {
 				List<Instant> created = etsyClient.getListingReviews(listing.getListingId(), 100);
 				ReviewWindow.Summary summary = reviewWindow.summarize(created, observedAt);
+				listing.setReviews1d(summary.reviews1d());
+				listing.setReviews7d(summary.reviews7d());
 				listing.setReviews30d(summary.reviews30d());
 				listing.setLastReviewAt(summary.lastReviewAt());
 				listingRepository.save(listing);
