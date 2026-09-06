@@ -93,11 +93,12 @@ public class ListingsController {
 	public ListingDetailResponse detail(
 			@PathVariable long id,
 			@RequestParam(defaultValue = "20") int snapshotLimit,
-			@RequestParam(defaultValue = "false") boolean debug) {
+			@RequestParam(defaultValue = "false") boolean debug,
+			@RequestParam(required = false) String momentumPeriod) {
 		if (snapshotLimit < 1 || snapshotLimit > MAX_PAGE_SIZE) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "snapshotLimit must be 1..200");
 		}
-		ListingDetailResponse detail = listingFeedService.detail(id, snapshotLimit, debug);
+		ListingDetailResponse detail = listingFeedService.detail(id, snapshotLimit, debug, parseMomentumPeriod(momentumPeriod));
 		if (detail == null) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "listing not found");
 		}

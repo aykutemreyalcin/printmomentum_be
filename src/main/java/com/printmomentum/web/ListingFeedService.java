@@ -7,7 +7,7 @@ import com.printmomentum.domain.ListingEstimator;
 import com.printmomentum.domain.ListingImage;
 import com.printmomentum.domain.ListingQueryHit;
 import com.printmomentum.domain.ListingQueryHitRepository;
-import com.printmomentum.domain.ListingRanker;
+import com.printmomentum.domain.ListingPeriodMetrics;
 import com.printmomentum.domain.ListingRepository;
 import com.printmomentum.domain.ListingSnapshot;
 import com.printmomentum.domain.ListingSnapshotRepository;
@@ -168,7 +168,7 @@ public class ListingFeedService {
 	}
 
 	@Transactional(readOnly = true)
-	public ListingDetailResponse detail(long listingId, int snapshotLimit, boolean debug) {
+	public ListingDetailResponse detail(long listingId, int snapshotLimit, boolean debug, MomentumPeriod momentumPeriod) {
 		Listing listing = listingRepository.findById(listingId).orElse(null);
 		if (listing == null) {
 			return null;
@@ -185,7 +185,8 @@ public class ListingFeedService {
 		List<QueryHitItem> hits = queryHitsForListing(listing);
 		List<QueryPeerItem> peers = queryPeers(hits);
 		QueryPeerItem primary = peers.stream().min(Comparator.comparingInt(QueryPeerItem::position)).orElse(null);
-		ListingFeedItem item = toItem(listing, favoriteIdsForCurrentUser().contains(listingId), hits, MomentumPeriod.WEEKLY);
+		MomentumPeriod period = momentumPeriod == null ? MomentumPeriod.WEEKLY : momentumPeriod;
+		ListingFeedItem item = toItem(listing, favoriteIdsForCurrentUser().contains(listingId), hits, period);
 		List<String> takeaway = listingTakeaway.lines(new ListingTakeaway.Input(
 				item.daysToTop(),
 				item.estSales30d(),
@@ -334,8 +335,9 @@ public class ListingFeedService {
 				? listing.getOriginalCreatedAt()
 				: listing.getEtsyCreatedAt();
 		Shop shop = listing.getShop();
+		ListingPeriodMetrics.Values metrics = ListingPeriodMetrics.forListing(listing, period, listingEstimator);
 		ListingEstimator.Estimate estimate = listingEstimator.estimate(
-				listing.getReviews30d(), listing.getPriceAmount(), listing.getViews(), created, now);
+				metrics.reviews(), listing.getPriceAmount(), listing.getViews(), created, now);
 		return new ListingFeedItem(
 				listing.getListingId(),
 				listing.getTitle(),
@@ -369,11 +371,11 @@ public class ListingFeedService {
 				listing.getEtsyBestsellerEndedAt(),
 				listing.isPmBestseller(),
 				favorite,
-				listing.getReviews30d(),
-				estimate.estSales30d(),
-				estimate.estRevenue30d(),
-				listing.getDeltaFavorers7d(),
-				listing.getDeltaViews7d(),
+				metrics.reviews(),
+				metrics.estSales(),
+				metrics.estRevenue(),
+				metrics.deltaFavorers(),
+				metrics.deltaViews(),
 				estimate.viewsPerDay(),
 				queryHits);
 	}
