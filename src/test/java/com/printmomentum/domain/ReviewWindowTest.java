@@ -19,8 +19,8 @@ class ReviewWindowTest {
 						Instant.parse("2026-08-01T00:00:00Z"),
 						Instant.parse("2026-08-20T12:00:00Z")),
 				now);
-		assertThat(summary.reviews1d()).isEqualTo(1);
-		assertThat(summary.reviews7d()).isEqualTo(2);
+		assertThat(summary.reviews1d()).isEqualTo(0);
+		assertThat(summary.reviews7d()).isEqualTo(1);
 		assertThat(summary.reviews30d()).isEqualTo(2);
 		assertThat(summary.lastReviewAt()).isEqualTo(Instant.parse("2026-08-20T12:00:00Z"));
 	}

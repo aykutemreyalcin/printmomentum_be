@@ -32,7 +32,7 @@ class FlywayMigrationTest {
 		assertThat(tableCount("niche_term")).isEqualTo(1);
 		assertThat(tableCount("listing_niche_term")).isEqualTo(1);
 		assertThat(tableCount("niche_window_snapshot")).isEqualTo(1);
-		assertThat(flywayVersion()).isEqualTo("13");
+		assertThat(flywayVersion()).isEqualTo("14");
 	}
 
 	@Test

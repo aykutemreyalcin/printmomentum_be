@@ -137,6 +137,8 @@ class ListingDetailControllerTest {
 		listing.setLastScore(new BigDecimal("0.750000000"));
 		listing.setLastScoreWeekly(new BigDecimal("0.750000000"));
 		listing.setReviews30d(4);
+		listing.setReviews7d(4);
+		listing.setReviews1d(0);
 		listing.setEtsyBestseller(true);
 		listing.setEtsyBestsellerSince(Instant.parse("2026-08-12T00:00:00Z"));
 		Instant created = Instant.parse("2026-08-01T00:00:00Z");
