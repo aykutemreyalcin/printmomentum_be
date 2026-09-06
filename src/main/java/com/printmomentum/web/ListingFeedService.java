@@ -8,6 +8,7 @@ import com.printmomentum.domain.ListingImage;
 import com.printmomentum.domain.ListingQueryHit;
 import com.printmomentum.domain.ListingQueryHitRepository;
 import com.printmomentum.domain.ListingPeriodMetrics;
+import com.printmomentum.domain.ListingRanker;
 import com.printmomentum.domain.ListingRepository;
 import com.printmomentum.domain.ListingSnapshot;
 import com.printmomentum.domain.ListingSnapshotRepository;
